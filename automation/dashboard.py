@@ -190,8 +190,15 @@ def _step_selected_row(delta: int, max_index: int) -> int:
 def main() -> None:
     """Launch a lightweight human-in-the-loop dashboard."""
 
+    st.set_page_config(page_title="Review Console", layout="wide")
+
     st.title("Human Review for Extracted Records")
-    st.caption("Approve high-confidence records faster while keeping exports aligned with the template.")
+    st.caption(
+        "Approve high-confidence records faster while keeping exports aligned with the template."
+    )
+    st.info(
+        "Load the extracted dataset, filter to the records you want, then review each row using the navigation controls."
+    )
     last_action = st.session_state.get("last_action")
     if last_action and last_action.get("message"):
         level = last_action.get("level", "info")
@@ -202,38 +209,51 @@ def main() -> None:
             "error": st.error,
         }.get(level, st.info)
         renderer(last_action["message"])
-    data_dir = Path(st.sidebar.text_input("Data directory", value="dummy_data"))
-    output_path = Path(st.sidebar.text_input("Output CSV", value="output/reviewed_records.csv"))
+    st.sidebar.header("Load & filter data")
+    data_dir = Path(
+        st.sidebar.text_input(
+            "Data directory", value="dummy_data", help="Folder with forms, emails, and invoices."
+        )
+    )
+    output_path = Path(
+        st.sidebar.text_input(
+            "Output CSV", value="output/reviewed_records.csv", help="Where reviewed rows are stored."
+        )
+    )
 
     sink = st.sidebar.selectbox(
         "Export sink (CSV always saved)",
         options=["csv", "excel", "sheets"],
         format_func=lambda value: value.upper(),
+        help="Pick the extra destination to mirror approved rows."
     )
     excel_default = output_path.with_suffix(".xlsx")
     excel_path_value = st.sidebar.text_input("Excel output", value=str(excel_default))
     excel_path = Path(excel_path_value) if excel_path_value else None
 
-    st.sidebar.markdown("**Google Sheets settings**")
-    spreadsheet_id = st.sidebar.text_input("Spreadsheet ID")
-    worksheet_title = st.sidebar.text_input("Worksheet title", value="Sheet1")
-    service_account_file = st.sidebar.text_input("Service account JSON", value="service_account.json")
-    service_account_path = Path(service_account_file) if service_account_file else None
+    with st.sidebar.expander("Google Sheets sync", expanded=sink == "sheets"):
+        spreadsheet_id = st.text_input(
+            "Spreadsheet ID", help="Copied from the Google Sheet URL."
+        )
+        worksheet_title = st.text_input("Worksheet title", value="Sheet1")
+        service_account_file = st.text_input(
+            "Service account JSON", value="service_account.json"
+        )
+        service_account_path = Path(service_account_file) if service_account_file else None
 
-    if sink == "sheets":
-        sheets_ready = bool(spreadsheet_id and worksheet_title and service_account_file)
-        if sheets_ready and service_account_path and service_account_path.exists():
-            st.sidebar.success("Google Sheets settings look valid.")
-        elif sheets_ready:
-            st.sidebar.warning(f"Service account file not found at {service_account_path}.")
-        else:
-            st.sidebar.warning(
-                "Enter a Spreadsheet ID, worksheet title, and a service account JSON file to enable sync."
-            )
+        if sink == "sheets":
+            sheets_ready = bool(spreadsheet_id and worksheet_title and service_account_file)
+            if sheets_ready and service_account_path and service_account_path.exists():
+                st.success("Google Sheets settings look valid.")
+            elif sheets_ready:
+                st.warning(f"Service account file not found at {service_account_path}.")
+            else:
+                st.info(
+                    "Enter a Spreadsheet ID, worksheet title, and a service account JSON file to enable sync."
+                )
 
     st.sidebar.info(
-        "Workflow: filter by source/status, navigate records with the arrows, edit fields, and approve/reject. "
-        "Approved rows will always be written to CSV and optionally to Excel or Sheets as configured."
+        "Workflow: 1) Load data  2) Filter queue  3) Navigate rows  4) Edit fields  5) Approve/Reject/Send for review."
     )
 
     if st.sidebar.button("Reload data"):
@@ -244,7 +264,17 @@ def main() -> None:
     records = _load_session_records(data_dir)
 
     st.subheader("Review progress snapshot")
-    _status_counters(records)
+    progress_cols = st.columns([2, 1])
+    with progress_cols[0]:
+        _status_counters(records)
+        st.caption("Each status shows how many rows are in that part of the review pipeline.")
+    with progress_cols[1]:
+        st.markdown("**Statuses legend**")
+        st.markdown(
+            "- ✅ **Approved**: ready for export\n"
+            "- 🚧 **Needs review**: flagged by checks or reviewer\n"
+            "- ❌ **Rejected**: excluded from exports"
+        )
     _source_overview(records)
 
     sources = sorted({record.source for record in records})
@@ -268,7 +298,7 @@ def main() -> None:
     st.write("Records ready for review:")
     if filtered_records:
         table_rows = records_to_template_rows(record for _, record in filtered_records)
-        st.dataframe(table_rows, use_container_width=True)
+        st.dataframe(table_rows, use_container_width=True, height=280)
     else:
         st.info("No records match the current filters.")
 
@@ -340,10 +370,30 @@ def main() -> None:
     st.markdown(f"**Source:** {record.source} — {record.source_name}")
     st.caption(f"Current status: {record.status} | Notes: {record.notes or 'No reviewer notes yet.'}")
 
-    summary_cols = st.columns(3)
+    st.subheader("Record at a glance")
+    quality_score = getattr(record, "quality_score", None)
+    summary_cols = st.columns([1, 1, 1, 1])
     summary_cols[0].metric("Priority", record.priority or "Pending")
     summary_cols[1].metric("Service", record.service or "Not captured")
     summary_cols[2].metric("Channel", record.source.upper())
+    summary_cols[3].metric("Confidence", quality_score or "n/a")
+
+    detail_cols = st.columns([1.2, 1])
+    with detail_cols[0]:
+        st.markdown(
+            f"**Customer**: {record.customer_name or 'Unknown'}  \n"
+            f"**Contact**: {record.email or record.phone or 'Not captured'}  \n"
+            f"**Service**: {record.service or 'Not captured'}"
+        )
+    with detail_cols[1]:
+        st.markdown(
+            f"**Amounts**  \n"
+            f"• Net: {record.net_amount or 'n/a'}  \n"
+            f"• VAT: {record.vat_amount or 'n/a'}  \n"
+            f"• Total: {record.total_amount or 'n/a'}"
+        )
+        if record.notes:
+            st.markdown(f"**Existing notes**: {record.notes}")
 
     with st.expander("Quality & readiness", expanded=True):
         if record.status == "needs_review":
