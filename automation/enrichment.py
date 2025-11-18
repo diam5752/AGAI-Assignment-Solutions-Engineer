@@ -40,6 +40,17 @@ NEED_KEYWORDS = (
     "we want",
 )
 
+TRAILING_CONNECTORS = [
+    "γιατί",
+    "διότι",
+    "επειδή",
+    "because",
+    "since",
+    "ώστε",
+    "so that",
+    "για να",
+]
+
 TRAILING_CLAUSE_PATTERNS = [
     re.compile(r"\s+για\s+(?:τον|την|το|τη|τους)\s+[^.?!]*?\b(?:μας|μου)\b.*$", re.IGNORECASE),
     re.compile(r"\s+for\s+our\b.*$", re.IGNORECASE),
@@ -74,9 +85,20 @@ def _load_ai_env_from_file() -> None:
         logger.debug("Could not load AI secrets file %s: %s", path, exc)
 
 
+def _strip_trailing_connectors(text: str) -> str:
+    lowered = text.lower().rstrip(".!?…").rstrip()
+    for connector in TRAILING_CONNECTORS:
+        c = connector.lower()
+        if lowered.endswith(c):
+            cutoff = len(text) - len(connector)
+            return text[:cutoff].rstrip(" ,:;-")
+    return text
+
+
 def _clean_phrase(text: str) -> str:
     text = re.sub(r"\s+", " ", text).strip(" -•\n\t")
-    return text.strip()
+    text = text.strip()
+    return _strip_trailing_connectors(text).strip()
 
 
 def _trim_trailing_clause(text: str) -> str:
@@ -146,7 +168,7 @@ class LLMEnricher:
     def __init__(self) -> None:
         _load_ai_env_from_file()
         self.api_key = os.getenv("OPENAI_API_KEY")
-        self.model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        self.model = os.getenv("OPENAI_MODEL", "gpt-5-mini")
         self.base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
         self.disabled = os.getenv("AI_ENRICHMENT_DISABLED", "0") == "1"
         self.session = requests.Session() if self.api_key else None
@@ -198,8 +220,9 @@ class LLMEnricher:
                     "content": (
                         "You extract business metadata. Respond ONLY with a minimal JSON object containing "
                         "'service_interest', 'priority', 'message_summary', and optionally 'missing_fields'. "
-                        "Keep message_summary under 200 characters and avoid generic statements. "
-                        "Priority must be exactly high, medium, or low."
+                        "Priority must be exactly high, medium, or low. message_summary must be a single, complete "
+                        "sentence (same language as the user) that reflects the core need expressed in the content, "
+                        "without lists, numbering, or trailing conjunctions."
                     ),
                 },
                 {"role": "user", "content": prompt},
@@ -217,7 +240,9 @@ class LLMEnricher:
             )
             response.raise_for_status()
             content = response.json()["choices"][0]["message"]["content"]
-            return json.loads(content)
+            payload = json.loads(content)
+            payload["_source"] = "ai"
+            return payload
         except Exception as exc:  # pragma: no cover - network optional
             logger.debug("LLM enrichment failed: %s", exc)
             return {}
@@ -259,8 +284,9 @@ class LLMEnricher:
         if service:
             updates["service"] = service
 
+        summary_source = data.pop("_source", None)
         summary = data.get("message_summary")
-        message_text = self._template_style_message(record, summary)
+        message_text = self._template_style_message(record, summary, summary_source)
         if message_text:
             updates["message"] = message_text
 
@@ -284,19 +310,37 @@ class LLMEnricher:
             "priority": priority,
             "service_interest": service,
             "message_summary": summary,
+            "_source": "fallback",
         }
 
-    def _template_style_message(self, record: UnifiedRecord, summary: Optional[str]) -> str:
+    def _template_style_message(
+        self, record: UnifiedRecord, summary: Optional[str], summary_source: Optional[str]
+    ) -> str:
         """Prefer concise 'needs' statements similar to the shared template."""
 
-        for text in (summary, record.message):
+        if summary_source == "ai" and summary:
+            candidate = self._need_statement_from_text(summary) or summary
+            candidate = _clean_phrase(candidate)
+            if candidate and not _indicates_missing_info(candidate):
+                return candidate
+
+        texts = [record.message, summary]
+        for text in texts:
+            if not text:
+                continue
             phrase = self._need_statement_from_text(text)
             if phrase:
-                return _single_sentence(phrase)
+                cleaned = _clean_phrase(phrase)
+                if cleaned and not _indicates_missing_info(cleaned):
+                    if summary_source == "ai" and text is summary:
+                        return cleaned
+                    return _single_sentence(cleaned)
 
         fallback = summary or record.message or ""
         if fallback and not _indicates_missing_info(fallback):
-            return _single_sentence(self._smart_shorten(fallback, max_chars=160))
+            if summary_source == "ai" and summary:
+                return _clean_phrase(summary)
+            return _single_sentence(self._smart_shorten(fallback, max_chars=200))
         if record.service:
             return _single_sentence(f"Χρειαζόμαστε λύση για {record.service}")
         return ""
@@ -332,9 +376,20 @@ class LLMEnricher:
                     snippet = re.split(r"[.!?\n]", snippet, maxsplit=1)[0]
                     return _clean_phrase(snippet)
             if pending_prefix and not matched_keyword:
+                if re.match(r"^(\d+[\.\)]\s*|[-•]\s*)", normalized):
+                    phrase = _clean_phrase(pending_prefix)
+                    pending_prefix = None
+                    if phrase:
+                        return phrase
+                    continue
                 combined = f"{pending_prefix} {normalized}"
                 pending_prefix = None
                 return _clean_phrase(combined)
+
+        if pending_prefix:
+            phrase = _clean_phrase(pending_prefix)
+            if phrase:
+                return phrase
 
         flat = " ".join(line.strip() for line in lines if line.strip())
         lowered_flat = flat.lower()

@@ -80,6 +80,59 @@ def test_enrichment_limits_message_to_single_sentence(monkeypatch):
     assert enriched.message == "Χρειαζόμαστε ένα νέο e-commerce website"
 
 
+def test_enrichment_handles_colon_followed_by_list(monkeypatch):
+    """Need statements ending with ':' should ignore numbered reasons."""
+
+    monkeypatch.setenv("AI_ENRICHMENT_DISABLED", "1")
+    record = UnifiedRecord(
+        source="email",
+        source_name="email_02.eml",
+        service="E-commerce Platform",
+        priority=None,
+        message=(
+            "Θέλουμε να δημιουργήσουμε ένα e-commerce website γιατί:\n"
+            "1. Έχουμε φυσικό κατάστημα 10 χρόνια\n"
+            "2. Διαθέτουμε 500+ προϊόντα"
+        ),
+    )
+
+    enriched = enrich_records([record])[0]
+
+    assert enriched.message == "Θέλουμε να δημιουργήσουμε ένα e-commerce website"
+
+
+def test_ai_summary_is_preserved(monkeypatch):
+    """AI-generated summaries should remain intact without code truncation."""
+
+    monkeypatch.setenv("AI_ENRICHMENT_DISABLED", "0")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+    def fake_call(self, record):
+        return {
+            "priority": "high",
+            "service_interest": "CRM System",
+            "message_summary": "Θέλουμε σύστημα που οργανώνει όλο το συνεργείο χωρίς κοψίματα.",
+            "_source": "ai",
+        }
+
+    monkeypatch.setattr(enrichment.LLMEnricher, "_call_model", fake_call)
+    enrichment._AI_ENV_LOADED = False
+
+    record = UnifiedRecord(
+        source="email",
+        source_name="email_ai.eml",
+        service=None,
+        priority=None,
+        message="Περιγραφή με ελλιπή στοιχεία που απαιτεί AI.",
+    )
+
+    enriched = enrich_records([record])[0]
+
+    assert enriched.message == "Θέλουμε σύστημα που οργανώνει όλο το συνεργείο χωρίς κοψίματα."
+    assert enriched.priority == "high"
+    assert enriched.service == "CRM System"
+
+
 def test_llm_runs_only_for_uncertain_records(monkeypatch):
     """LLM should be invoked when fields are missing or text is long."""
 
@@ -94,6 +147,7 @@ def test_llm_runs_only_for_uncertain_records(monkeypatch):
             "priority": "medium",
             "service_interest": "CRM System",
             "message_summary": "Need a CRM with email automations",
+            "_source": "ai",
         }
 
     monkeypatch.setattr(enrichment.LLMEnricher, "_call_model", fake_call)
