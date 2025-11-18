@@ -46,6 +46,13 @@ def run_pipeline(
 
     logger.info("Pipeline starting for data dir %s", data_dir)
     raw_records = load_records(data_dir)
+    if not raw_records:
+        message = (
+            f"No records found under {data_dir}. "
+            "Verify the directory exists and includes forms, invoices, or emails."
+        )
+        logger.error(message)
+        raise ValueError(message)
     logger.info("Loaded %d raw records", len(raw_records))
     records = apply_quality_checks(raw_records)
     logger.info("Annotated %d records with quality statuses", len(records))

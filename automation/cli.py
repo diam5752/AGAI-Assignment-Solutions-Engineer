@@ -56,15 +56,20 @@ def main() -> None:
 
     configure_logging()
     args = build_parser().parse_args()
-    output_path = run_pipeline(
-        args.data_dir,
-        args.output,
-        sink=args.sink,
-        spreadsheet_id=args.spreadsheet_id,
-        worksheet_title=args.worksheet,
-        service_account_path=args.service_account,
-        excel_path=args.excel_output,
-    )
+    try:
+        output_path = run_pipeline(
+            args.data_dir,
+            args.output,
+            sink=args.sink,
+            spreadsheet_id=args.spreadsheet_id,
+            worksheet_title=args.worksheet,
+            service_account_path=args.service_account,
+            excel_path=args.excel_output,
+        )
+    except ValueError as exc:
+        print(f"Error: {exc}")
+        raise SystemExit(1) from exc
+
     print(f"Wrote {output_path}")
 
 

@@ -87,3 +87,16 @@ def test_cli_sheets_sink_uses_pipeline(monkeypatch: pytest.MonkeyPatch, tmp_path
 
     assert captured["rows"] is not None
     assert len(captured["rows"] or []) == expected_record_count
+
+
+def test_cli_exits_when_no_records(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    csv_output = tmp_path / "records.csv"
+
+    with pytest.raises(SystemExit) as excinfo:
+        _run_cli(
+            monkeypatch,
+            ["--data-dir", str(tmp_path / "missing"), "--output", str(csv_output)],
+        )
+
+    assert excinfo.value.code == 1
+    assert not csv_output.exists()
