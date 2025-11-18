@@ -14,6 +14,18 @@ A minimal guide to run the extraction pipeline, dashboard, and tests locally.
    pip install -r requirements.txt -r requirements-dev.txt
    ```
 
+## Configure AI Enrichment
+1. Copy `secrets/openai.env.example` to `secrets/openai.env`.
+2. Fill in your actual credentials:
+   ```bash
+   OPENAI_API_KEY=sk-your-key
+   OPENAI_MODEL=gpt-4o-mini
+   OPENAI_BASE_URL=https://api.openai.com/v1
+   AI_ENRICHMENT_DISABLED=0
+   ```
+3. The pipeline automatically loads this file; set `AI_SECRET_FILE=/path/to/file` if you prefer a custom location.
+4. Leave `AI_ENRICHMENT_DISABLED=1` locally when you want to force the deterministic fallbacks.
+
 ## Run the pipeline CLI
 The CLI reads from `dummy_data` by default and writes a CSV with the unified records.
 ```bash

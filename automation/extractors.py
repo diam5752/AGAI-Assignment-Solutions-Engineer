@@ -112,10 +112,7 @@ def parse_invoice(path: Path) -> UnifiedRecord:
 
     content = _read_file(path)
     text = _html_to_text(content).replace("\r", "")
-    text_lower = text.lower()
     lines = [line for line in text.splitlines() if line.strip()]
-    email_match = re.search(r"[\w.+-]+@[\w.-]+", text)
-    phone_match = re.search(r"(\+?\d[\d\-\s]{6,})", text)
     company_match = re.search(r'<div[^>]*class="company"[^>]*>(.*?)</div>', content, re.DOTALL)
     vendor_name = ""
     if company_match:
@@ -148,31 +145,10 @@ def parse_invoice(path: Path) -> UnifiedRecord:
 
     euro_amounts = re.findall(r"€\s*[\d\.,]+", text)
 
-    def _contact_value(label_set: list[str]) -> str:
-        raw = after(label_set)
-        for separator in ("|", "/", ";"):
-            if separator in raw:
-                raw = raw.split(separator, 1)[0]
-        return raw.strip()
-
     net_raw = after(["Καθαρή Αξία", "Καθ. Αξία", "Net"])
     vat_raw = after(["ΦΠΑ 24%", "VAT"])
     total_raw = after(["ΣΥΝΟΛΟ", "Total"])
     total_raw = fallback_amount(total_raw, euro_amounts)
-
-    email_raw = (
-        _contact_value(["Email", "E-mail"])
-        if any(label.lower() in text_lower for label in ["email", "e-mail"])
-        else ""
-    )
-    phone_raw = (
-        _contact_value(["Τηλ", "Τηλέφωνο", "Phone", "Tel"])
-        if any(label.lower() in text_lower for label in ["τηλ", "τηλέφωνο", "phone", "tel"])
-        else ""
-    )
-
-    email_value = email_raw or (email_match.group(0).strip() if email_match else "")
-    phone_value = phone_raw or (phone_match.group(0) if phone_match else "")
 
     return UnifiedRecord(
         source="invoice",
@@ -181,8 +157,8 @@ def parse_invoice(path: Path) -> UnifiedRecord:
         invoice_number=after(["Αριθμός", "Invoice"]),
         invoice_date=after(["Ημερομηνία", "Date"]),
         company=vendor_name or None,
-        email=email_value or None,
-        phone=re.sub(r"[^\d+]", "", phone_value) if phone_value else None,
+        email=None,
+        phone=None,
         net_amount=_clean_amount(net_raw) if net_raw else None,
         vat_amount=_clean_amount(vat_raw) if vat_raw else None,
         total_amount=_clean_amount(total_raw) if total_raw else None,

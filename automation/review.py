@@ -6,13 +6,15 @@ from typing import Dict, Iterable, List, Any
 from automation.extractors import load_records
 from automation.models import UnifiedRecord
 from automation.quality import apply_quality_checks
+from automation.enrichment import enrich_records
 
 
 def load_review_records(data_dir: Path) -> List[UnifiedRecord]:
     """Load and validate records so the UI can present review-ready data."""
 
     raw_records = load_records(data_dir)
-    return apply_quality_checks(raw_records)
+    records = apply_quality_checks(raw_records)
+    return enrich_records(records)
 
 
 def apply_edits(record: UnifiedRecord, updates: Dict[str, str]) -> UnifiedRecord:

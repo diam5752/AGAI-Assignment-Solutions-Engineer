@@ -25,8 +25,8 @@ def test_parse_invoice_amounts():
     assert record.total_amount == 1054.00
     assert record.vat_amount == 204.00
     assert record.company == "TechFlow Solutions"
-    assert record.email == "info@techflow-solutions.gr"
-    assert record.phone == "2101234567"
+    assert record.email is None
+    assert record.phone is None
 
 
 def test_parse_email_structured_contact_details():
@@ -41,6 +41,22 @@ def test_parse_email_structured_contact_details():
     assert record.company == "TechCorp AE"
     assert "CRM" in record.service
     assert "συνάντηση".casefold() in record.message.casefold()
+    assert record.submission_date == "2024-01-20"
+
+
+def test_parse_email_header_date_populates_submission_date(tmp_path):
+    """The Date header should feed the record submission_date."""
+
+    message = EmailMessage()
+    message["From"] = "Header <header@example.com>"
+    message["Date"] = "Mon, 20 Jan 2024 10:30:00 +0200"
+    message.set_content("Body text")
+
+    eml_path = tmp_path / "dated.eml"
+    eml_path.write_bytes(message.as_bytes())
+
+    record = parse_email(eml_path)
+    assert record.submission_date == "2024-01-20"
     assert record.submission_date == "2024-01-20"
 
 

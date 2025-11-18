@@ -9,6 +9,7 @@ from automation.models import UnifiedRecord
 from automation.quality import apply_quality_checks
 from automation.sinks import push_to_google_sheets, write_excel
 from automation.templates import TEMPLATE_HEADERS, records_to_template_rows
+from automation.enrichment import enrich_records
 
 
 logger = logging.getLogger(__name__)
@@ -57,6 +58,8 @@ def run_pipeline(
     logger.info("Loaded %d raw records", len(raw_records))
     records = apply_quality_checks(raw_records)
     logger.info("Annotated %d records with quality statuses", len(records))
+    records = enrich_records(records)
+    logger.info("Enriched %d records with AI-assisted summaries", len(records))
     rows = records_to_template_rows(records)
     write_csv(rows, output_path)
     logger.info("Wrote CSV output to %s", output_path)

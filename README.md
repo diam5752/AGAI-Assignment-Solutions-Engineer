@@ -62,6 +62,11 @@
 - Google Sheets: απαιτείται service account JSON (π.χ. `credentials/service_account.json`) και το `spreadsheet_id` από το URL του Sheet. Δημιουργήστε ή μοιραστείτε το φύλλο με το service account email και καλέστε το CLI με `--sink=sheets --spreadsheet-id <ID> --service-account <path> --worksheet <tab name>`.
 - Το template στη διαδρομή `dummy_data/templates/data_extraction_template.csv` δείχνει τα header names που χρησιμοποιούνται σε όλα τα sinks.
 
+## AI Enrichment Setup
+
+- Αντιγράψτε το `secrets/openai.env.example` σε `secrets/openai.env` και συμπληρώστε τα πεδία `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_BASE_URL`.
+- Το pipeline φορτώνει αυτόματα το αρχείο (ή χρησιμοποιήστε `AI_SECRET_FILE` για custom διαδρομή) και μπορεί να παρακάμψει το AI με `AI_ENRICHMENT_DISABLED=1` όταν χρειάζεται.
+
 ## Στόχος
 
 Δημιουργήστε ένα πλήρες automation solution που:
