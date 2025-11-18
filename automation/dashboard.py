@@ -4,6 +4,13 @@ from typing import List
 
 import streamlit as st
 
+# Allow running via "streamlit run automation/dashboard.py" without installing the package
+# by ensuring the repository root is on ``sys.path``.
+if __package__ in {None, ""}:
+    import sys
+
+    sys.path.append(str(Path(__file__).resolve().parent.parent))
+
 from automation.models import UnifiedRecord
 from automation.pipeline import write_csv
 from automation.review import (
