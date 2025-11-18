@@ -26,6 +26,20 @@ A minimal guide to run the extraction pipeline, dashboard, and tests locally.
 3. The pipeline automatically loads this file; set `AI_SECRET_FILE=/path/to/file` if you prefer a custom location.
 4. Leave `AI_ENRICHMENT_DISABLED=1` locally when you want to force the deterministic fallbacks.
 
+## Configure Google Sheets Sync
+1. Create a Google Cloud service account with Sheets API access and download the JSON key.
+2. Copy `secrets/service_account.example.json` to `secrets/service_account.json` and replace the placeholder values with your key.
+3. Share your Google Sheet with the service account `client_email` (Editor access).
+4. Run the CLI with:
+   ```bash
+   python -m automation.cli \
+     --sink=sheets \
+     --spreadsheet-id <your_sheet_id> \
+     --worksheet Sheet1 \
+     --service-account secrets/service_account.json
+   ```
+   If the file lives at `secrets/service_account.json`, you can omit `--service-account`.
+
 ## Run the pipeline CLI
 The CLI reads from `dummy_data` by default and writes a CSV with the unified records.
 ```bash
@@ -34,13 +48,13 @@ python -m automation.cli --data-dir dummy_data --output output/unified_records.c
 
 Choose an optional sink to mirror the same rows:
 - Excel: `python -m automation.cli --sink=excel --excel-output output/unified_records.xlsx`
-- Google Sheets: requires a service account JSON (download it to `credentials/service_account.json`) shared with the target sheet.
+- Google Sheets: requires a service account JSON (download it to `secrets/service_account.json`) shared with the target sheet.
   ```bash
   python -m automation.cli \
     --sink=sheets \
     --spreadsheet-id <your_sheet_id> \
     --worksheet Sheet1 \
-    --service-account credentials/service_account.json
+    --service-account secrets/service_account.json
   ```
 
 ## Launch the review dashboard

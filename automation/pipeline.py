@@ -9,6 +9,11 @@ from automation.models import UnifiedRecord
 from automation.quality import apply_quality_checks
 from automation.sinks import push_to_google_sheets, write_excel
 from automation.templates import TEMPLATE_HEADERS, records_to_template_rows
+
+DEFAULT_SERVICE_ACCOUNT_PATHS = [
+    Path("secrets/service_account.json"),
+    Path("credentials/service_account.json"),
+]
 from automation.enrichment import enrich_records
 
 
@@ -71,11 +76,22 @@ def run_pipeline(
     elif sink == "sheets":
         if not spreadsheet_id:
             raise ValueError("spreadsheet_id is required when sink='sheets'")
+        account_path = service_account_path
+        if not account_path:
+            for candidate in DEFAULT_SERVICE_ACCOUNT_PATHS:
+                if candidate.exists():
+                    account_path = candidate
+                    break
+        if not account_path:
+            raise ValueError(
+                "Provide --service-account pointing to your Google credentials or place a file at "
+                f"{DEFAULT_SERVICE_ACCOUNT_PATHS[0]}"
+            )
         push_to_google_sheets(
             rows,
             spreadsheet_id=spreadsheet_id,
             worksheet_title=worksheet_title,
-            service_account_path=service_account_path,
+            service_account_path=account_path,
         )
         logger.info(
             "Pushed %d rows to Google Sheets document %s (worksheet %s)",

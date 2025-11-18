@@ -59,7 +59,11 @@
 
 - Προεπιλογή: τα ενιαία rows γράφονται σε CSV (`output/unified_records.csv`).
 - Excel: χρησιμοποιήστε την επιλογή `--sink=excel` για να παραχθεί επίσης αρχείο `output/unified_records.xlsx` με το ίδιο σχήμα.
-- Google Sheets: απαιτείται service account JSON (π.χ. `credentials/service_account.json`) και το `spreadsheet_id` από το URL του Sheet. Δημιουργήστε ή μοιραστείτε το φύλλο με το service account email και καλέστε το CLI με `--sink=sheets --spreadsheet-id <ID> --service-account <path> --worksheet <tab name>`.
+- Google Sheets: απαιτείται service account JSON (π.χ. `secrets/service_account.json`) και το `spreadsheet_id` από το URL του Sheet. Βήματα:
+  1. Δημιουργήστε service account στο Google Cloud Console και κατεβάστε το JSON.
+  2. Αντιγράψτε το `secrets/service_account.example.json` σε `secrets/service_account.json` και επικολλήστε τα δικά σας πεδία.
+  3. Μοιραστείτε το target Sheet με το `client_email` του service account (Editor access).
+  4. Τρέξτε το CLI με `python -m automation.cli --sink=sheets --spreadsheet-id <ID> --worksheet <tab>`. Αν το αρχείο βρίσκεται στο `secrets/service_account.json` δεν χρειάζεται η παράμετρος `--service-account`.
 - Το template στη διαδρομή `dummy_data/templates/data_extraction_template.csv` δείχνει τα header names που χρησιμοποιούνται σε όλα τα sinks.
 
 ## AI Enrichment Setup
