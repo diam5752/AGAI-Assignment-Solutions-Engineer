@@ -64,6 +64,7 @@
   2. Αντιγράψτε το `secrets/service_account.example.json` σε `secrets/service_account.json` και επικολλήστε τα δικά σας πεδία.
   3. Μοιραστείτε το target Sheet με το `client_email` του service account (Editor access).
   4. Τρέξτε το CLI με `python -m automation.cli --sink=sheets --spreadsheet-id <ID> --worksheet <tab>`. Αν το αρχείο βρίσκεται στο `secrets/service_account.json` δεν χρειάζεται η παράμετρος `--service-account`.
+  5. Για αυτόματο sync μετά από κάθε run, αντιγράψτε το `secrets/sheets.env.example` σε `secrets/sheets.env`, θέστε `GOOGLE_SHEETS_AUTO_SYNC=1` και συμπληρώστε τα υπόλοιπα πεδία (sheet ID, worksheet).
 - Το template στη διαδρομή `dummy_data/templates/data_extraction_template.csv` δείχνει τα header names που χρησιμοποιούνται σε όλα τα sinks.
 
 ## AI Enrichment Setup

@@ -129,3 +129,32 @@ def test_pipeline_output_aligns_with_template_examples(tmp_path: Path, dummy_dat
                 assert expected_token in generated.lower(), f"Service should align with template for {source}"
             else:
                 assert generated == expected, f"Mismatch in {field} for {source}"
+
+
+def test_run_pipeline_auto_syncs_to_sheets(monkeypatch, tmp_path: Path, dummy_data_dir: Path):
+    """Auto Sheets sync should fire when env config is provided."""
+
+    output_path = tmp_path / "unified.csv"
+    service_account = tmp_path / "service_account.json"
+    service_account.write_text("{}", encoding="utf-8")
+    recorded: dict[str, object] = {}
+
+    def fake_push(rows, spreadsheet_id, worksheet_title, service_account_path):
+        recorded["spreadsheet_id"] = spreadsheet_id
+        recorded["worksheet_title"] = worksheet_title
+        recorded["service_account_path"] = service_account_path
+        recorded["row_count"] = len(list(rows))
+
+    monkeypatch.setenv("AI_ENRICHMENT_DISABLED", "1")
+    monkeypatch.setenv("GOOGLE_SHEETS_AUTO_SYNC", "1")
+    monkeypatch.setenv("GOOGLE_SHEETS_SPREADSHEET_ID", "abc123")
+    monkeypatch.setenv("GOOGLE_SHEETS_WORKSHEET", "AutoTab")
+    monkeypatch.setenv("GOOGLE_SHEETS_SERVICE_ACCOUNT", str(service_account))
+    monkeypatch.setattr("automation.pipeline.push_to_google_sheets", fake_push)
+
+    run_pipeline(dummy_data_dir, output_path)
+
+    assert recorded["spreadsheet_id"] == "abc123"
+    assert recorded["worksheet_title"] == "AutoTab"
+    assert recorded["service_account_path"] == service_account
+    assert recorded["row_count"] == len(load_records(dummy_data_dir))

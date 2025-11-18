@@ -168,7 +168,7 @@ class LLMEnricher:
     def __init__(self) -> None:
         _load_ai_env_from_file()
         self.api_key = os.getenv("OPENAI_API_KEY")
-        self.model = os.getenv("OPENAI_MODEL", "gpt-5-mini")
+        self.model = os.getenv("OPENAI_MODEL", "gpt-5-nano")
         self.base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
         self.disabled = os.getenv("AI_ENRICHMENT_DISABLED", "0") == "1"
         self.session = requests.Session() if self.api_key else None

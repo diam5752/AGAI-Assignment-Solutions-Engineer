@@ -39,6 +39,7 @@ A minimal guide to run the extraction pipeline, dashboard, and tests locally.
      --service-account secrets/service_account.json
    ```
    If the file lives at `secrets/service_account.json`, you can omit `--service-account`.
+5. Optional: copy `secrets/sheets.env.example` to `secrets/sheets.env`, set `GOOGLE_SHEETS_AUTO_SYNC=1`, and fill in the IDs to push automatically every time the CLI runs (even when `--sink` stays `csv`).
 
 ## Run the pipeline CLI
 The CLI reads from `dummy_data` by default and writes a CSV with the unified records.

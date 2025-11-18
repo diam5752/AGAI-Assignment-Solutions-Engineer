@@ -19,6 +19,7 @@ def disable_ai(monkeypatch: pytest.MonkeyPatch) -> None:
     """Disable remote LLM calls during tests to avoid token usage."""
 
     monkeypatch.setenv("AI_ENRICHMENT_DISABLED", "1")
+    monkeypatch.setenv("GOOGLE_SHEETS_AUTO_SYNC", "0")
 
 
 @pytest.fixture

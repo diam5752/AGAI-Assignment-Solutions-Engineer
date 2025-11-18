@@ -13,7 +13,7 @@ if __package__ in {None, ""}:
     sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from automation.models import UnifiedRecord
-from automation.pipeline import write_csv
+from automation.pipeline import write_csv, auto_sheets_target
 from automation.sinks import push_to_google_sheets, write_excel
 from automation.quality import validate_record
 from automation.review import apply_edits, load_review_records, mark_status
@@ -53,6 +53,7 @@ def _export_sink(
     spreadsheet_id: str,
     worksheet_title: str,
     service_account_path: Path | None,
+    auto_config: dict | None = None,
 ) -> tuple[str | None, str | None]:
     """Run the configured export sink and return a status message."""
 
@@ -68,6 +69,10 @@ def _export_sink(
             return f"Excel export failed: {exc}", "error"
 
     if sink == "sheets":
+        if not (spreadsheet_id and worksheet_title and service_account_path) and auto_config:
+            spreadsheet_id = auto_config.get("spreadsheet_id", spreadsheet_id)
+            worksheet_title = auto_config.get("worksheet_title", worksheet_title or "Sheet1")
+            service_account_path = auto_config.get("service_account_path", service_account_path)
         if not spreadsheet_id or not worksheet_title or not service_account_path:
             return (
                 "Provide spreadsheet ID, worksheet title, and a service account file to sync with Google Sheets.",
@@ -286,6 +291,8 @@ def main() -> None:
         )
     )
 
+    auto_sheets_config = auto_sheets_target()
+
     sink = st.sidebar.selectbox(
         "Export sink (CSV always saved)",
         options=["csv", "excel", "sheets"],
@@ -296,15 +303,32 @@ def main() -> None:
     excel_path_value = st.sidebar.text_input("Excel output", value=str(excel_default))
     excel_path = Path(excel_path_value) if excel_path_value else None
 
+    sheets_sync_click = False
     with st.sidebar.expander("Google Sheets sync", expanded=sink == "sheets"):
-        spreadsheet_id = st.text_input(
-            "Spreadsheet ID", help="Copied from the Google Sheet URL."
+        default_spreadsheet = (
+            auto_sheets_config["spreadsheet_id"] if auto_sheets_config else ""
         )
-        worksheet_title = st.text_input("Worksheet title", value="Sheet1")
+        spreadsheet_id = st.text_input(
+            "Spreadsheet ID",
+            value=default_spreadsheet,
+            help="Copied from the Google Sheet URL.",
+        )
+        default_worksheet = auto_sheets_config["worksheet_title"] if auto_sheets_config else "Sheet1"
+        worksheet_title = st.text_input("Worksheet title", value=default_worksheet)
+        default_account = (
+            str(auto_sheets_config["service_account_path"]) if auto_sheets_config else "service_account.json"
+        )
         service_account_file = st.text_input(
-            "Service account JSON", value="service_account.json"
+            "Service account JSON",
+            value=default_account,
         )
         service_account_path = Path(service_account_file) if service_account_file else None
+
+        if auto_sheets_config:
+            st.caption(
+                "Stored settings detected. Leave the fields above as-is or click the button to sync immediately."
+            )
+            sheets_sync_click = st.button("Sync approved rows now", use_container_width=True)
 
         if sink == "sheets":
             sheets_ready = bool(spreadsheet_id and worksheet_title and service_account_file)
@@ -327,6 +351,28 @@ def main() -> None:
         _rerun_app()
 
     records = _load_session_records(data_dir)
+
+    if sheets_sync_click:
+        sidebar_rows = _save_records(st.session_state.records, output_path)
+        message, level = _export_sink(
+            st.session_state.records,
+            sidebar_rows,
+            sink="sheets",
+            output_path=output_path,
+            excel_path=excel_path,
+            spreadsheet_id=spreadsheet_id.strip(),
+            worksheet_title=worksheet_title.strip(),
+            service_account_path=service_account_path,
+            auto_config=auto_sheets_config,
+        )
+        if message:
+            sidebar_renderer = {
+                "success": st.sidebar.success,
+                "warning": st.sidebar.warning,
+                "info": st.sidebar.info,
+                "error": st.sidebar.error,
+            }
+            sidebar_renderer.get(level or "info", st.sidebar.info)(message)
 
     st.subheader("Live dashboard")
     with st.container():
@@ -502,6 +548,7 @@ def main() -> None:
             spreadsheet_id=spreadsheet_id.strip(),
             worksheet_title=worksheet_title.strip(),
             service_account_path=service_account_path,
+            auto_config=auto_sheets_config,
         )
         combined_message, combined_level = _combined_feedback(message, level, export_feedback)
         st.session_state["last_action"] = {"message": combined_message, "level": combined_level}
@@ -549,6 +596,7 @@ def main() -> None:
             spreadsheet_id=spreadsheet_id.strip(),
             worksheet_title=worksheet_title.strip(),
             service_account_path=service_account_path,
+            auto_config=auto_sheets_config,
         )
         message = f"Saved {len(st.session_state.records)} records to {output_path}"
         combined_message, combined_level = _combined_feedback(message, "success", export_feedback)
