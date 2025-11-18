@@ -58,6 +58,11 @@ NEED_KEYWORDS = (
     "we want",
 )
 
+TRAILING_CLAUSE_PATTERNS = [
+    re.compile(r"\s+για\s+(?:τον|την|το|τη|τους)\s+[^.?!]*?\b(?:μας|μου)\b.*$", re.IGNORECASE),
+    re.compile(r"\s+for\s+our\b.*$", re.IGNORECASE),
+]
+
 
 def _load_ai_env_from_file() -> None:
     """Load AI credentials from a local secrets file once per process."""
@@ -89,9 +94,54 @@ def _load_ai_env_from_file() -> None:
 
 def _clean_phrase(text: str) -> str:
     text = re.sub(r"\s+", " ", text).strip(" -•\n\t")
-    if text.endswith((".", "!", "?")):
-        text = text[:-1]
     return text.strip()
+
+
+def _trim_trailing_clause(text: str) -> str:
+    for pattern in TRAILING_CLAUSE_PATTERNS:
+        match = pattern.search(text)
+        if match:
+            trimmed = text[: match.start()].strip()
+            if trimmed:
+                return trimmed
+    return text
+
+
+def _single_sentence(text: str) -> str:
+    """Return only the first sentence-like fragment without trailing punctuation."""
+
+    if not text:
+        return ""
+    compact = " ".join(text.split()).strip()
+    if not compact:
+        return ""
+    parts = re.split(r"(?<=[.!?])\s+", compact, maxsplit=1)
+    first = parts[0] if parts else compact
+    trimmed = _trim_trailing_clause(first)
+    return trimmed.rstrip(".!?…").strip()
+
+
+def _indicates_missing_info(text: str) -> bool:
+    lowered = text.strip().lower()
+    if not lowered:
+        return True
+    placeholders = [
+        "not specified",
+        "not provided",
+        "no service",
+        "no priority",
+        "no specific service",
+        "no specific priority",
+        "unknown",
+        "n/a",
+        "none",
+        "χωρίς πληροφορίες",
+        "χωρίς υπηρεσία",
+        "χωρίς προτεραιότητα",
+        "δεν παρείχε",
+        "δεν αναφέρ",
+    ]
+    return any(token in lowered for token in placeholders)
 
 
 def enrich_records(records: Iterable[UnifiedRecord]) -> List[UnifiedRecord]:
@@ -134,6 +184,8 @@ class LLMEnricher:
         return self._apply_updates(record, self._fallback(record))
 
     def _needs_ai(self, record: UnifiedRecord) -> bool:
+        if (record.source or "").lower() == "invoice":
+            return False
         if not record.service or not record.priority or (record.message and len(record.message) > 400):
             return True
         return False
@@ -227,13 +279,13 @@ class LLMEnricher:
         for text in (summary, record.message):
             phrase = self._need_statement_from_text(text)
             if phrase:
-                return phrase
+                return _single_sentence(phrase)
 
         fallback = summary or record.message or ""
-        if fallback:
-            return self._shorten(fallback, max_chars=160)
+        if fallback and not _indicates_missing_info(fallback):
+            return _single_sentence(self._shorten(fallback, max_chars=160))
         if record.service:
-            return f"Χρειαζόμαστε λύση για {record.service}"
+            return _single_sentence(f"Χρειαζόμαστε λύση για {record.service}")
         return ""
 
     def _need_statement_from_text(self, text: Optional[str]) -> Optional[str]:
@@ -299,7 +351,10 @@ class LLMEnricher:
     def _normalize_service(self, value: Optional[str]) -> Optional[str]:
         if not value:
             return None
-        cleaned = " ".join(value.split())
+        cleaned = " ".join(value.split()).strip()
+        lowered = cleaned.lower()
+        if lowered in {"not specified", "unknown", "n/a", "na", "none", "no service", "χωρίς υπηρεσία"}:
+            return None
         for keyword, canonical in SERVICE_KEYWORDS:
             if keyword.lower() in cleaned.lower():
                 return canonical

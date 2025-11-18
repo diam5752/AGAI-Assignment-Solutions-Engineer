@@ -24,7 +24,7 @@ def test_parse_invoice_amounts():
     assert record.invoice_number == "TF-2024-001"
     assert record.total_amount == 1054.00
     assert record.vat_amount == 204.00
-    assert record.company == "TechFlow Solutions"
+    assert record.company is None
     assert record.email is None
     assert record.phone is None
 

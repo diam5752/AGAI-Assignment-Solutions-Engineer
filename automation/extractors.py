@@ -113,11 +113,6 @@ def parse_invoice(path: Path) -> UnifiedRecord:
     content = _read_file(path)
     text = _html_to_text(content).replace("\r", "")
     lines = [line for line in text.splitlines() if line.strip()]
-    company_match = re.search(r'<div[^>]*class="company"[^>]*>(.*?)</div>', content, re.DOTALL)
-    vendor_name = ""
-    if company_match:
-        vendor_name = " ".join(company_match.group(1).split())
-
     def after(labels: str | list[str]) -> str:
         """Pull the text that follows a label like 'Αριθμός:' within the document."""
 
@@ -156,7 +151,7 @@ def parse_invoice(path: Path) -> UnifiedRecord:
         customer_name=after(["Πελάτης", "Customer"]),
         invoice_number=after(["Αριθμός", "Invoice"]),
         invoice_date=after(["Ημερομηνία", "Date"]),
-        company=vendor_name or None,
+        company=None,
         email=None,
         phone=None,
         net_amount=_clean_amount(net_raw) if net_raw else None,
