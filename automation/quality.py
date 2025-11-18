@@ -19,6 +19,8 @@ def validate_record(record: UnifiedRecord) -> List[str]:
 
     # Source-specific checks keep the validation focused and minimal.
     if record.source == "invoice":
+        if not (record.customer_name or record.company or record.email or record.phone):
+            issues.append("missing invoice contact info")
         if not record.invoice_number:
             issues.append("missing invoice number")
         if record.total_amount is None or record.total_amount <= 0:
@@ -46,10 +48,9 @@ def apply_quality_checks(records: Iterable[UnifiedRecord]) -> List[UnifiedRecord
 
     for record in records:
         issues = validate_record(record)
-        record.status = "auto_valid" if not issues else "needs_review"
+        record.status = "needs_review" if issues else "pending"
         if issues:
             note = "; ".join(issues)
-            record.notes = f"{record.notes or ''} quality: {note}".strip()
             logger.warning("Quality issues for %s: %s", record.source_name, note)
         updated.append(record)
 

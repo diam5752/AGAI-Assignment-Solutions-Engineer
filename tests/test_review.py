@@ -23,7 +23,8 @@ def test_mark_status_appends_notes():
 
 
 def test_records_to_rows_matches_length(tmp_path: Path):
-    records = load_review_records(Path("dummy_data"))
+    records, alerts = load_review_records(Path("dummy_data"))
+    assert isinstance(alerts, list)
     rows = records_to_rows(records)
     assert len(rows) == len(records)
     assert rows[0]["source_name"] == records[0].source_name
