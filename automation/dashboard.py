@@ -4,9 +4,14 @@ from typing import List
 
 import streamlit as st
 
-from .pipeline import write_csv
-from .review import apply_edits, load_review_records, mark_status, records_to_rows
-from .models import UnifiedRecord
+from automation.models import UnifiedRecord
+from automation.pipeline import write_csv
+from automation.review import (
+    apply_edits,
+    load_review_records,
+    mark_status,
+    records_to_rows,
+)
 
 
 def _load_session_records(data_dir: Path) -> List[UnifiedRecord]:

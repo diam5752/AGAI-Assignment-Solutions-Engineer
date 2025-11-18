@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 from typing import List
 
-from .models import UnifiedRecord
+from automation.models import UnifiedRecord
 
 
 logger = logging.getLogger(__name__)

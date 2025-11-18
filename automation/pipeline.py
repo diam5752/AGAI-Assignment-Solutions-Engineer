@@ -4,9 +4,9 @@ import logging
 from pathlib import Path
 from typing import Iterable
 
-from .extractors import load_records
-from .quality import apply_quality_checks
-from .models import UnifiedRecord
+from automation.extractors import load_records
+from automation.models import UnifiedRecord
+from automation.quality import apply_quality_checks
 
 
 logger = logging.getLogger(__name__)

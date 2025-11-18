@@ -3,9 +3,9 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Dict, Iterable, List
 
-from .extractors import load_records
-from .models import UnifiedRecord
-from .quality import apply_quality_checks
+from automation.extractors import load_records
+from automation.models import UnifiedRecord
+from automation.quality import apply_quality_checks
 
 
 def load_review_records(data_dir: Path) -> List[UnifiedRecord]:
