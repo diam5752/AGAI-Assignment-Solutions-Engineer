@@ -78,7 +78,7 @@ The main entry point for running the pipeline is the CLI defined in `automation/
 From the repo root:
 
 ```bash
-python -m automation.cli
+python3 -m automation.cli
 ```
 
 What this does:
@@ -108,13 +108,13 @@ Examples:
 
 ```bash
 # Use custom input data folder
-python -m automation.cli --data-dir path/to/my_data
+python3 -m automation.cli --data-dir path/to/my_data
 
 # Use a different output file
-python -m automation.cli --output output/my_custom_file.csv
+python3 -m automation.cli --output output/my_custom_file.csv
 
 # Both at once
-python -m automation.cli \
+python3 -m automation.cli \
   --data-dir path/to/my_data \
   --output output/my_custom_file.csv
 ```
@@ -182,7 +182,7 @@ If you want a concrete checklist (Βήμα‑βήμα) to verify everything work
    - `pytest -q`
    - Confirm all tests pass.
 5. Run the pipeline on the dummy data:
-   - `python -m automation.cli`
+   - `python3 -m automation.cli`
    - Wait for the `Wrote output/unified_records.csv` message.
 6. Open `output/unified_records.csv` in Excel / Sheets:
    - Confirm that:
@@ -190,4 +190,3 @@ If you want a concrete checklist (Βήμα‑βήμα) to verify everything work
      - Important fields (customer name, email, invoice totals, etc.) look correct.
 
 After these steps you have fully exercised the existing backend: parsing all dummy assets and producing a unified CSV you can use as a basis for further UI, approval workflows, or integrations.
-
