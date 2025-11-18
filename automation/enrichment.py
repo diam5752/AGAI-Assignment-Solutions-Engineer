@@ -1,6 +1,7 @@
 """AI and heuristic enrichment for parsed records."""
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -23,25 +24,6 @@ PRIORITY_TRANSLATIONS = {
     "μέτρια": "medium",
     "χαμηλή": "low",
 }
-
-PRIORITY_KEYWORDS = {
-    "high": ["επείγον", "urgent", "άμεσα", "asap"],
-    "medium": ["εντός", "soon", "βραχυπρόθεσμα"],
-    "low": ["όταν", "μακροπρόθεσμα"],
-}
-
-SERVICE_KEYWORDS = [
-    ("CRM", "CRM System"),
-    ("crm", "CRM System"),
-    ("e-commerce", "E-commerce Platform"),
-    ("eshop", "E-commerce Platform"),
-    ("e-shop", "E-commerce Platform"),
-    ("τιμολόγιο", "Invoice Processing"),
-    ("invoice", "Invoice Processing"),
-    ("marketing", "Marketing Services"),
-    ("hotel", "Hotel Management System"),
-    ("booking", "Hotel Management System"),
-]
 
 NEED_KEYWORDS = (
     "χρειαζόμαστε",
@@ -168,6 +150,7 @@ class LLMEnricher:
         self.base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
         self.disabled = os.getenv("AI_ENRICHMENT_DISABLED", "0") == "1"
         self.session = requests.Session() if self.api_key else None
+        self._cache: dict[str, Dict[str, Optional[str]]] = {}
 
     def enrich(self, record: UnifiedRecord) -> UnifiedRecord:
         """Return a new record with summarized fields."""
@@ -177,7 +160,13 @@ class LLMEnricher:
 
         needs_ai = self._needs_ai(record)
         if needs_ai and self.session:
-            response = self._call_model(record)
+            cache_key = self._fingerprint(record)
+            if cache_key in self._cache:
+                response = self._cache[cache_key]
+            else:
+                response = self._call_model(record)
+                if response:
+                    self._cache[cache_key] = response
             if response:
                 return self._apply_updates(record, response)
 
@@ -186,9 +175,16 @@ class LLMEnricher:
     def _needs_ai(self, record: UnifiedRecord) -> bool:
         if (record.source or "").lower() == "invoice":
             return False
-        if not record.service or not record.priority or (record.message and len(record.message) > 400):
-            return True
-        return False
+
+        priority = self._normalize_priority(record.priority)
+        service = self._normalize_service(record.service)
+        message = (record.message or "").strip()
+
+        message_missing = not message or _indicates_missing_info(message)
+        message_long = len(message) > 360
+        missing_core_fields = not priority or not service
+
+        return missing_core_fields or message_missing or message_long
 
     def _call_model(self, record: UnifiedRecord) -> Dict[str, str]:
         """Call OpenAI chat completions to derive structured insights."""
@@ -200,14 +196,16 @@ class LLMEnricher:
                 {
                     "role": "system",
                     "content": (
-                        "You extract business metadata. Respond ONLY with JSON object containing "
+                        "You extract business metadata. Respond ONLY with a minimal JSON object containing "
                         "'service_interest', 'priority', 'message_summary', and optionally 'missing_fields'. "
-                        "Priority must be high, medium, or low."
+                        "Keep message_summary under 200 characters and avoid generic statements. "
+                        "Priority must be exactly high, medium, or low."
                     ),
                 },
                 {"role": "user", "content": prompt},
             ],
             "temperature": 0.2,
+            "max_tokens": 200,
         }
 
         try:
@@ -230,9 +228,24 @@ class LLMEnricher:
             "company": record.company or "",
             "service": record.service or "",
             "priority": record.priority or "",
-            "message": (record.message or "")[:2000],
+            "message": (record.message or "")[:1200],
         }
         return json.dumps(fields, ensure_ascii=False)
+
+    def _fingerprint(self, record: UnifiedRecord) -> str:
+        """Create a stable hash so repeated inputs reuse cached AI responses."""
+
+        canonical = json.dumps(
+            {
+                "service": record.service,
+                "priority": record.priority,
+                "message": (record.message or "")[:500],
+                "company": record.company,
+            },
+            sort_keys=True,
+            ensure_ascii=False,
+        )
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
     def _apply_updates(self, record: UnifiedRecord, data: Dict[str, Optional[str]]) -> UnifiedRecord:
         updates: Dict[str, Optional[str]] = {}
@@ -263,9 +276,9 @@ class LLMEnricher:
     def _fallback(self, record: UnifiedRecord) -> Dict[str, Optional[str]]:
         """Deterministic heuristics when AI is unavailable."""
 
-        priority = self._normalize_priority(record.priority) or self._priority_from_text(record.message or "")
-        service = self._normalize_service(record.service) or self._service_from_text(record)
-        summary = self._shorten(record.message or "")
+        priority = self._normalize_priority(record.priority)
+        service = self._normalize_service(record.service)
+        summary = self._smart_shorten(record.message or "")
 
         return {
             "priority": priority,
@@ -283,7 +296,7 @@ class LLMEnricher:
 
         fallback = summary or record.message or ""
         if fallback and not _indicates_missing_info(fallback):
-            return _single_sentence(self._shorten(fallback, max_chars=160))
+            return _single_sentence(self._smart_shorten(fallback, max_chars=160))
         if record.service:
             return _single_sentence(f"Χρειαζόμαστε λύση για {record.service}")
         return ""
@@ -341,42 +354,48 @@ class LLMEnricher:
             return lowered
         return PRIORITY_TRANSLATIONS.get(lowered)
 
-    def _priority_from_text(self, text: str) -> Optional[str]:
-        lowered = text.lower()
-        for level, keywords in PRIORITY_KEYWORDS.items():
-            if any(keyword in lowered for keyword in keywords):
-                return level
-        return None
-
     def _normalize_service(self, value: Optional[str]) -> Optional[str]:
         if not value:
             return None
         cleaned = " ".join(value.split()).strip()
         lowered = cleaned.lower()
-        if lowered in {"not specified", "unknown", "n/a", "na", "none", "no service", "χωρίς υπηρεσία"}:
+        placeholders = {
+            "not specified",
+            "unknown",
+            "n/a",
+            "na",
+            "none",
+            "no service",
+            "χωρίς υπηρεσία",
+        }
+        if lowered in placeholders:
             return None
-        for keyword, canonical in SERVICE_KEYWORDS:
-            if keyword.lower() in cleaned.lower():
-                return canonical
         return cleaned
 
-    def _service_from_text(self, record: UnifiedRecord) -> Optional[str]:
-        text = " ".join(filter(None, [record.service, record.message or ""]))
-        for keyword, canonical in SERVICE_KEYWORDS:
-            if keyword.lower() in text.lower():
-                return canonical
-        return None
+    def _smart_shorten(self, message: str, max_chars: int = 240) -> str:
+        """Preserve meaning by keeping full sentences within the limit."""
 
-    def _shorten(self, message: str, max_chars: int = 240) -> str:
         if not message:
             return ""
-        message = " ".join(message.split())
-        if len(message) <= max_chars:
-            return message
-        sentences = re.split(r"(?<=[.!?])\s+", message)
-        summary = ""
+
+        normalized = " ".join(message.split()).strip()
+        if len(normalized) <= max_chars:
+            return normalized
+
+        sentences = re.split(r"(?<=[.!?])\s+", normalized)
+        summary_parts: list[str] = []
+        total = 0
         for sentence in sentences:
-            if len(summary) + len(sentence) + 1 > max_chars:
+            sentence = sentence.strip()
+            if not sentence:
+                continue
+            projected = total + len(sentence) + (1 if summary_parts else 0)
+            if projected > max_chars:
                 break
-            summary = f"{summary} {sentence}".strip()
-        return summary or message[:max_chars].rstrip() + "…"
+            summary_parts.append(sentence)
+            total = projected
+
+        if summary_parts:
+            return " ".join(summary_parts)
+
+        return normalized[: max_chars - 1].rstrip() + "…"

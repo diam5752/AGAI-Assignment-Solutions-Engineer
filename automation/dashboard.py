@@ -191,6 +191,7 @@ def main() -> None:
     """Launch a lightweight human-in-the-loop dashboard."""
 
     st.title("Human Review for Extracted Records")
+    st.caption("Approve high-confidence records faster while keeping exports aligned with the template.")
     last_action = st.session_state.get("last_action")
     if last_action and last_action.get("message"):
         level = last_action.get("level", "info")
@@ -267,7 +268,7 @@ def main() -> None:
     st.write("Records ready for review:")
     if filtered_records:
         table_rows = records_to_template_rows(record for _, record in filtered_records)
-        st.dataframe(table_rows)
+        st.dataframe(table_rows, use_container_width=True)
     else:
         st.info("No records match the current filters.")
 
@@ -338,6 +339,12 @@ def main() -> None:
 
     st.markdown(f"**Source:** {record.source} — {record.source_name}")
     st.caption(f"Current status: {record.status} | Notes: {record.notes or 'No reviewer notes yet.'}")
+
+    summary_cols = st.columns(3)
+    summary_cols[0].metric("Priority", record.priority or "Pending")
+    summary_cols[1].metric("Service", record.service or "Not captured")
+    summary_cols[2].metric("Channel", record.source.upper())
+
     with st.expander("Quality & readiness", expanded=True):
         if record.status == "needs_review":
             st.warning(
