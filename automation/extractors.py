@@ -2,7 +2,7 @@
 import html
 from email import policy
 from email.parser import BytesParser
-from email.utils import parseaddr
+from email.utils import parseaddr, parsedate_to_datetime
 import logging
 import re
 import unicodedata
@@ -146,6 +146,13 @@ def parse_email(path: Path) -> UnifiedRecord:
 
     from_header = message["From"] or ""
     subject = message["Subject"] or ""
+    raw_date = message["Date"]
+
+    submission_date: str | None = None
+    if raw_date:
+        parsed_date = parsedate_to_datetime(raw_date)
+        if parsed_date:
+            submission_date = parsed_date.isoformat()
 
     def _extract_text_body() -> str:
         if message.is_multipart():
@@ -233,6 +240,7 @@ def parse_email(path: Path) -> UnifiedRecord:
         company=structured_contact.get("company"),
         message=text_body or None,
         service=subject or None,
+        submission_date=submission_date,
         notes="parsed from email header and body",
     )
 

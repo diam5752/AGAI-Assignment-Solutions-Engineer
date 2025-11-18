@@ -40,6 +40,15 @@ def test_parse_email_structured_contact_details():
     assert "συνάντηση".casefold() in record.message.casefold()
 
 
+def test_parse_email_extracts_header_date():
+    """Email Date header should populate the submission_date field."""
+
+    email_path = DATA_DIR / "emails" / "email_01.eml"
+    record = parse_email(email_path)
+
+    assert record.submission_date == "2024-01-20T10:30:00+02:00"
+
+
 def test_parse_email_uses_header_when_body_missing_email(tmp_path):
     """Fallback to From header if body omits email field."""
 
@@ -62,6 +71,22 @@ def test_parse_email_uses_header_when_body_missing_email(tmp_path):
     assert record.email == "header@example.com"
     assert record.phone == "6944000000"
     assert record.company == "Body Co"
+
+
+def test_parse_email_gracefully_handles_missing_date(tmp_path):
+    """If no Date header exists, submission_date should remain empty."""
+
+    message = EmailMessage()
+    message["From"] = "No Date <no.date@example.com>"
+    message["Subject"] = "Missing date test"
+    message.set_content("Body without a date header")
+
+    eml_path = tmp_path / "missing_date.eml"
+    eml_path.write_bytes(message.as_bytes())
+
+    record = parse_email(eml_path)
+
+    assert record.submission_date is None
 
 
 def test_parse_email_without_headers(tmp_path):

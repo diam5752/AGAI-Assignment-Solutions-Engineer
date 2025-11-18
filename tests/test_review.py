@@ -29,6 +29,14 @@ def test_records_to_rows_matches_length(tmp_path: Path):
     assert rows[0]["source_name"] == records[0].source_name
 
 
+def test_load_review_records_populates_email_dates():
+    records = load_review_records(Path("dummy_data"))
+    email_records = {record.source_name: record for record in records if record.source == "email"}
+
+    assert "email_01.eml" in email_records
+    assert email_records["email_01.eml"].submission_date.startswith("2024-01-20")
+
+
 def test_apply_edits_ignores_none_values():
     record = UnifiedRecord(source="form", source_name="sample.html", customer_name="Old", email="old@example.com")
     updated = apply_edits(record, {"customer_name": None, "email": "new@example.com"})
