@@ -1,6 +1,7 @@
 """Utilities for parsing forms, invoices, and emails into unified records."""
 from email import policy
 from email.parser import BytesParser
+from email.utils import parseaddr
 import logging
 import re
 from pathlib import Path
@@ -104,13 +105,48 @@ def parse_email(path: Path) -> UnifiedRecord:
     body = message.get_body(preferencelist=("plain",))
     text_body = body.get_content().strip() if body else ""
 
+    def _extract_structured_contact(text: str) -> dict:
+        """Pull contact fields from bullet lists like '- Όνομα: Value'."""
+
+        contact: dict = {}
+        pattern = re.compile(r"^-\s*([^:]+):\s*(.+)$", re.MULTILINE)
+        label_to_field = {
+            "όνομα": "customer_name",
+            "name": "customer_name",
+            "email": "email",
+            "e-mail": "email",
+            "τηλέφωνο": "phone",
+            "κινητό": "phone",
+            "τηλ": "phone",
+            "phone": "phone",
+            "εταιρεία": "company",
+            "company": "company",
+        }
+
+        for match in pattern.finditer(text):
+            label, value = match.group(1).strip(), match.group(2).strip()
+            normalized = label.casefold()
+            for token, field in label_to_field.items():
+                if token in normalized:
+                    contact.setdefault(field, value)
+                    break
+        return contact
+
+    structured_contact = _extract_structured_contact(text_body)
+    header_name, header_email = parseaddr(from_header)
+
+    customer_name = structured_contact.get("customer_name") or header_name or None
+    email = structured_contact.get("email") or header_email or None
+
     return UnifiedRecord(
         source="email",
         source_name=path.name,
-        customer_name=str(message.get("From", "")).split("<")[0].strip(),
-        email=from_header,
-        message=text_body,
-        service=subject,
+        customer_name=customer_name,
+        email=email,
+        phone=structured_contact.get("phone"),
+        company=structured_contact.get("company"),
+        message=text_body or None,
+        service=subject or None,
         notes="parsed from email header and body",
     )
 

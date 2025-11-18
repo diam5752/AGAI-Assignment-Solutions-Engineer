@@ -1,4 +1,5 @@
 """Minimal tests to verify data extraction from dummy assets."""
+from email.message import EmailMessage
 from pathlib import Path
 
 from automation.extractors import parse_form, parse_invoice, parse_email, load_records
@@ -25,14 +26,65 @@ def test_parse_invoice_amounts():
     assert record.vat_amount == 204.00
 
 
-def test_parse_email_headers():
-    """Validate that the email parser captures headers and body content."""
+def test_parse_email_structured_contact_details():
+    """Validate structured body details populate unified fields."""
 
     email_path = DATA_DIR / "emails" / "email_01.eml"
     record = parse_email(email_path)
-    assert "Σπύρος" in record.customer_name
+
+    assert record.customer_name == "Σπύρος Μιχαήλ"
+    assert record.email == "spyros.michail@techcorp.gr"
+    assert record.phone == "210-3344556"
+    assert record.company == "TechCorp AE"
     assert "CRM" in record.service
     assert "συνάντηση".casefold() in record.message.casefold()
+
+
+def test_parse_email_uses_header_when_body_missing_email(tmp_path):
+    """Fallback to From header if body omits email field."""
+
+    message = EmailMessage()
+    message["From"] = "Header Name <header@example.com>"
+    message["Subject"] = "Νέο αίτημα"
+    message.set_content(
+        "Στοιχεία:\n"
+        "- Όνομα: Body Name\n"
+        "- Τηλέφωνο: 6944000000\n"
+        "- Εταιρεία: Body Co"
+    )
+
+    eml_path = tmp_path / "missing_email.eml"
+    eml_path.write_bytes(message.as_bytes())
+
+    record = parse_email(eml_path)
+
+    assert record.customer_name == "Body Name"
+    assert record.email == "header@example.com"
+    assert record.phone == "6944000000"
+    assert record.company == "Body Co"
+
+
+def test_parse_email_without_headers(tmp_path):
+    """Handle structured contact details even when headers are absent."""
+
+    message = EmailMessage()
+    message.set_content(
+        "Στοιχεία Επικοινωνίας:\n"
+        "- Όνομα: No Header Name\n"
+        "- Email: body@example.com\n"
+        "- Κινητό: 2100000000\n"
+        "- Εταιρεία: Headerless Co"
+    )
+
+    eml_path = tmp_path / "no_headers.eml"
+    eml_path.write_bytes(message.as_bytes())
+
+    record = parse_email(eml_path)
+
+    assert record.customer_name == "No Header Name"
+    assert record.email == "body@example.com"
+    assert record.phone == "2100000000"
+    assert record.company == "Headerless Co"
 
 
 def test_load_records_counts_all_assets():
