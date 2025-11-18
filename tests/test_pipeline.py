@@ -23,6 +23,20 @@ def test_run_pipeline_writes_csv_with_headers_and_status(tmp_path: Path, dummy_d
     assert rows[0]["Date"]
 
 
+def test_run_pipeline_populates_email_dates(tmp_path: Path, dummy_data_dir: Path):
+    output_path = tmp_path / "unified.csv"
+
+    run_pipeline(dummy_data_dir, output_path)
+
+    rows = list(csv.DictReader(output_path.read_text(encoding="utf-8").splitlines()))
+    email_rows = [row for row in rows if row["Type"] == "EMAIL"]
+
+    assert email_rows, "Expected email records in the CSV output"
+    assert all(row["Date"] for row in email_rows), "Email rows should include dates"
+    example_email = next(row for row in email_rows if row["Source"] == "email_01.eml")
+    assert example_email["Date"] == "2024-01-20"
+
+
 def test_run_pipeline_errors_when_no_records(tmp_path: Path) -> None:
     missing_data_dir = tmp_path / "missing"
     output_path = tmp_path / "unified.csv"

@@ -1,5 +1,6 @@
 """Mapping utilities to align unified records with the client template."""
-from datetime import datetime
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any, Dict, Iterable, List
 
 from automation.models import UnifiedRecord
@@ -58,6 +59,14 @@ def _normalize_date(raw: str | None) -> str:
             return datetime.strptime(text, fmt).strftime("%Y-%m-%d")
         except ValueError:
             continue
+
+    try:
+        parsed = parsedate_to_datetime(text)
+        if parsed:
+            parsed = parsed.astimezone(timezone.utc) if parsed.tzinfo else parsed
+            return parsed.date().isoformat()
+    except (TypeError, ValueError):
+        pass
     return text
 
 

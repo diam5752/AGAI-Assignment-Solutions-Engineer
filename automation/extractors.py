@@ -1,8 +1,9 @@
 """Utilities for parsing forms, invoices, and emails into unified records."""
 import html
+from datetime import timezone
 from email import policy
 from email.parser import BytesParser
-from email.utils import parseaddr
+from email.utils import parseaddr, parsedate_to_datetime
 import logging
 import re
 import unicodedata
@@ -46,6 +47,26 @@ def _clean_amount(raw: str) -> float:
         normalized = normalized.replace(",", "")
 
     return float(normalized)
+
+
+def _parse_email_date(date_header: str | None) -> str | None:
+    """Return an ISO-formatted date string derived from an email header."""
+
+    if not date_header:
+        return None
+
+    try:
+        parsed = parsedate_to_datetime(date_header)
+    except (TypeError, ValueError):
+        return date_header.strip() or None
+
+    if not parsed:
+        return date_header.strip() or None
+
+    if parsed.tzinfo:
+        parsed = parsed.astimezone(timezone.utc)
+
+    return parsed.date().isoformat()
 
 
 def parse_form(path: Path) -> UnifiedRecord:
@@ -256,6 +277,7 @@ def parse_email(path: Path) -> UnifiedRecord:
 
     structured_contact = _extract_structured_contact(text_body)
     header_name, header_email = parseaddr(from_header)
+    submission_date = _parse_email_date(message.get("Date"))
 
     customer_name = structured_contact.get("customer_name") or header_name or None
     email = structured_contact.get("email") or header_email or None
@@ -269,6 +291,7 @@ def parse_email(path: Path) -> UnifiedRecord:
         company=structured_contact.get("company"),
         message=text_body or None,
         service=subject or None,
+        submission_date=submission_date,
         notes="parsed from email header and body",
     )
 
