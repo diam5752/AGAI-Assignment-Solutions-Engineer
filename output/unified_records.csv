@@ -1,0 +1,307 @@
+source,source_name,customer_name,email,phone,company,service,message,priority,submission_date,invoice_number,invoice_date,net_amount,vat_amount,total_amount,currency,status,notes
+form,contact_form_1.html,Νίκος Παπαδόπουλος,nikos.papadopoulos@example.gr,210-1234567,Digital Marketing Pro,Ανάπτυξη Website,Χρειαζόμαστε ένα νέο e-commerce website για την εταιρεία μας. Έχουμε περίπου 200 προϊόντα και θέλουμε integration με το ERP μας.,Υψηλή,2024-01-15T14:30,,,,,,EUR,pending_review,extracted from HTML form
+form,contact_form_2.html,Μαρία Κώστα,maria.kosta@lawfirm.gr,210-9876543,Κώστα & Συνεργάτες Δικηγορικό Γραφείο,Διαχείριση Βάσης Δεδομένων,Θέλουμε να δημιουργήσουμε ένα σύστημα διαχείρισης υποθέσεων και πελατών. Χρειαζόμαστε ασφάλεια υψηλού επιπέδου λόγω ευαίσθητων δεδομένων.,Μέτρια,2024-01-16T09:15,,,,,,EUR,pending_review,extracted from HTML form
+form,contact_form_3.html,Γιάννης Αντωνίου,giannis@restaurant-olympia.gr,2310-555123,Ολυμπία Restaurant Chain,Σύστημα POS,"Έχουμε 5 εστιατόρια και χρειαζόμαστε ενοποιημένο σύστημα POS με κεντρική διαχείριση, online παραγγελίες και loyalty program.",Υψηλή,2024-01-17T11:45,,,,,,EUR,pending_review,extracted from HTML form
+form,contact_form_4.html,Άννα Γεωργίου,anna.georgiou@medclinic.gr,210-7654321,Κέντρο Υγείας Αθήνας,Σύστημα Διαχείρισης Ιατρείου,"Χρειαζόμαστε σύστημα διαχείρισης ασθενών, ραντεβού, ιατρικών αρχείων και τιμολόγησης. Πρέπει να είναι GDPR compliant.",Μέτρια,2024-01-18T16:20,,,,,,EUR,pending_review,extracted from HTML form
+form,contact_form_5.html,Κώστας Δημητρίου,kostas@buildingco.gr,2310-123456,Δημητρίου Κατασκευές ΑΕ,Σύστημα Διαχείρισης Έργων,"Διαχειριζόμαστε 15+ ταυτόχρονα έργα κατασκευών. Χρειαζόμαστε σύστημα για παρακολούθηση προόδου, κόστους, υλικών και εργατικού δυναμικού.",Χαμηλή,2024-01-19T13:10,,,,,,EUR,pending_review,extracted from HTML form
+invoice,invoice_TF-2024-001.html,Office Solutions Ltd,,,,,,,,TF-2024-001,21/01/2024,850.0,204.0,1054.0,EUR,pending_review,extracted from HTML invoice
+invoice,invoice_TF-2024-002.html,Microsoft Hellas,,,,,,,,TF-2024-002,22/01/2024,2400.0,576.0,2976.0,EUR,pending_review,extracted from HTML invoice
+invoice,invoice_TF-2024-003.html,Computer World SA,,,,,,,,TF-2024-003,23/01/2024,4200.0,1008.0,5208.0,EUR,pending_review,extracted from HTML invoice
+invoice,invoice_TF-2024-004.html,Digital Marketing Agency,,,,,,,,TF-2024-004,24/01/2024,1600.0,384.0,1984.0,EUR,pending_review,extracted from HTML invoice
+invoice,invoice_TF-2024-005.html,Βιβλιοπωλείο Καλλιτεχνία,,,,,,,,TF-2024-005,25/01/2024,2030.0,487.2,2517.2,EUR,pending_review,extracted from HTML invoice
+invoice,invoice_TF-2024-006.html,Ιατρείο Παπαδόπουλος,,,,,,,,TF-2024-006,26/01/2024,6220.0,1492.8,7712.8,EUR,pending_review,extracted from HTML invoice
+invoice,invoice_TF-2024-007.html,"Καφέ ""Ελληνικός""",,,,,,,,TF-2024-007,27/01/2024,1720.0,412.8,2132.8,EUR,pending_review,extracted from HTML invoice
+invoice,invoice_TF-2024-008.html,Δικηγορικό Γραφείο Κ. Μάντζιου,,,,,,,,TF-2024-008,28/01/2024,3800.0,912.0,4712.0,EUR,pending_review,extracted from HTML invoice
+invoice,invoice_TF-2024-009.html,"Fitness Club ""Ηρακλής""",,,,,,,,TF-2024-009,29/01/2024,1590.0,381.6,1971.6,EUR,pending_review,extracted from HTML invoice
+invoice,invoice_TF-2024-010.html,"Φωτογραφικό Στούντιο ""Φως""",,,,,,,,TF-2024-010,30/01/2024,3500.0,840.0,4340.0,EUR,pending_review,extracted from HTML invoice
+email,email_01.eml,Σπύρος Μιχαήλ,Σπύρος Μιχαήλ <spyros.michail@techcorp.gr>,,,Αίτημα για Σύστημα CRM,"Καλησπέρα,
+
+Είμαι ο Σπύρος Μιχαήλ από την TechCorp AE και θα θέλαμε να συζητήσουμε για ένα σύστημα CRM.
+
+Στοιχεία Επικοινωνίας:
+- Όνομα: Σπύρος Μιχαήλ
+- Email: spyros.michail@techcorp.gr
+- Τηλέφωνο: 210-3344556
+- Εταιρεία: TechCorp AE
+- Θέση: Διευθυντής Πωλήσεων
+
+Χρειαζόμαστε:
+- Διαχείριση πελατών (300+ ενεργοί πελάτες)
+- Παρακολούθηση πωλήσεων
+- Αυτόματα reports
+- Integration με το existing ERP μας
+
+Μπορούμε να κανονίσουμε μια συνάντηση την επόμενη εβδομάδα;
+
+Ευχαριστώ,
+Σπύρος Μιχαήλ
+TechCorp AE",,,,,,,,EUR,pending_review,parsed from email header and body
+email,email_02.eml,Ελένη Παπαγεωργίου,Ελένη Παπαγεωργίου <eleni@fashionstore.gr>,,,E-commerce Platform για Fashion Store,"Γεια σας,
+
+Ονομάζομαι Ελένη Παπαγεωργίου και είμαι η ιδιοκτήτρια του Fashion Store στο κέντρο της Αθήνας.
+
+Στοιχεία μου:
+- Όνομα: Ελένη Παπαγεωργίου  
+- Email: eleni@fashionstore.gr
+- Κινητό: 6944-123456
+- Εταιρεία: Fashion Store Athens
+- Διεύθυνση: Ερμού 45, Αθήνα
+
+Θέλουμε να δημιουργήσουμε ένα e-commerce website γιατί:
+1. Έχουμε φυσικό κατάστημα 10 χρόνια
+2. Διαθέτουμε 500+ προϊόντα ρούχων/αξεσουάρ
+3. Θέλουμε να επεκταθούμε online
+4. Χρειαζόμαστε σύστημα inventory management
+5. Payment gateway integration (Visa, Mastercard, PayPal)
+
+Έχετε εμπειρία με fashion e-commerce;
+
+Περιμένω την απάντησή σας.
+
+Ελένη Παπαγεωργίου
+Fashion Store Athens",,,,,,,,EUR,pending_review,parsed from email header and body
+email,email_03.eml,Λογιστήριο TechFlow,Λογιστήριο TechFlow <accounting@techflow-solutions.gr>,,,Τιμολόγιο #TF-2024-001 - Office Supplies,"Αγαπητοί συνεργάτες,
+
+Σας αποστέλλουμε το τιμολόγιο #TF-2024-001 για τα είδη γραφείου.
+
+Στοιχεία Τιμολογίου:
+- Αριθμός: TF-2024-001
+- Ημερομηνία: 21/01/2024
+- Προμηθευτής: Office Solutions Ltd
+- Καθαρή Αξία: €850.00
+- ΦΠΑ 24%: €204.00
+- Συνολικό Ποσό: €1,054.00
+
+Προϊόντα:
+- Χαρτί Α4 (20 πακέτα): €240.00
+- Στυλό (50 τεμάχια): €125.00
+- Φάκελοι (200 τεμάχια): €85.00
+- Συρραπτικό: €45.00
+- Αγραφες: €35.00
+- Notebook (10 τεμάχια): €180.00
+- Μαρκαδόροι (20 σετ): €140.00
+
+Το PDF τιμολόγιο είναι attached.
+
+Με εκτίμηση,
+Λογιστήριο TechFlow Solutions
+
+[ATTACHMENT: invoice_TF-2024-001.pdf]",,,,,,,,EUR,pending_review,parsed from email header and body
+email,email_04.eml,Παναγιώτης Κωνσταντίνου,Παναγιώτης Κωνσταντίνου <panagiotis@autoservice.gr>,,,Αίτημα για Garage Management System,"Καλό απόγευμα,
+
+Είμαι ο Παναγιώτης Κωνσταντίνου και έχω συνεργείο αυτοκινήτων εδώ και 15 χρόνια.
+
+Προσωπικά Στοιχεία:
+- Όνομα: Παναγιώτης Κωνσταντίνου
+- Email: panagiotis@autoservice.gr  
+- Τηλέφωνο: 2310-987654
+- Εταιρεία: AutoService Κωνσταντίνου
+- Διεύθυνση: Λ. Βουλιαγμένης 234, Γλυφάδα
+
+Το πρόβλημά μας:
+- Χειροκίνητη καταγραφή εργασιών
+- Δεν παρακολουθούμε spare parts σωστά
+- Δύσκολη τιμολόγηση πελατών
+- Δεν έχουμε ιστορικό για κάθε αυτοκίνητο
+
+Θέλουμε σύστημα που:
+1. Καταγράφει κάθε εργασία
+2. Διαχειρίζεται inventory ανταλλακτικών
+3. Δημιουργεί αυτόματα estimates/τιμολόγια
+4. Κρατάει service history ανά πελάτη/όχημα
+5. Κανονίζει appointments
+
+Είμαστε 6 μηχανικοί + 2 γραμματείς.
+
+Παναγιώτης Κωνσταντίνου
+AutoService Κωνσταντίνου",,,,,,,,EUR,pending_review,parsed from email header and body
+email,email_05.eml,Λογιστήριο TechFlow,Λογιστήριο TechFlow <accounting@techflow-solutions.gr>,,,Τιμολόγιο #TF-2024-002 - Software Licenses,"Τμήμα Οικονομικών,
+
+Παρακαλώ βρείτε συνημμένο το τιμολόγιο για τις άδειες λογισμικού.
+
+Στοιχεία Τιμολογίου:
+- Αριθμός: TF-2024-002
+- Ημερομηνία: 22/01/2024
+- Προμηθευτής: Microsoft Hellas
+- Καθαρή Αξία: €2,400.00
+- ΦΠΑ 24%: €576.00
+- Συνολικό Ποσό: €2,976.00
+
+Αναλυτικά:
+- Office 365 Business (12 licenses): €1,200.00
+- Windows Server 2022 Standard: €800.00
+- SQL Server Standard: €400.00
+
+Πληρωμή: 30 ημέρες από την έκδοση
+
+Με εκτίμηση,
+Μαρία Οικονόμου
+Λογιστήριο TechFlow Solutions
+
+[ATTACHMENT: invoice_TF-2024-002.pdf]",,,,,,,,EUR,pending_review,parsed from email header and body
+email,email_06.eml,Δημήτρης Βασιλείου,Δημήτρης Βασιλείου <dimitris@hotelgroup.gr>,,,Hotel Management System - Urgent Need,"Καλησπέρα σας,
+
+Ονομάζομαι Δημήτρης Βασιλείου και είμαι General Manager στο Aegean Hotel Group.
+
+Στοιχεία Επικοινωνίας:
+- Όνομα: Δημήτρης Βασιλείου
+- Email: dimitris@hotelgroup.gr
+- Τηλέφωνο: 22840-123456  
+- Εταιρεία: Aegean Hotel Group
+- Θέση: General Manager
+- Τοποθεσία: Μύκονος
+
+Η ανάγκη μας είναι επείγουσα:
+- Διαχειριζόμαστε 3 ξενοδοχεία (45, 60, 80 δωμάτια)
+- Χρειαζόμαστε ενοποιημένο booking system
+- Online reservations από booking.com, expedia κτλ
+- Housekeeping management
+- Check-in/Check-out automation
+- Billing & invoicing
+- Guest services management
+
+Το υπάρχον σύστημά μας είναι παλιό και δεν καλύπτει τις ανάγκες μας.
+
+Η σεζόν ξεκινάει σε 2 μήνες!
+
+Μπορείτε να βοηθήσετε;
+
+Δημήτρης Βασιλείου
+Aegean Hotel Group",,,,,,,,EUR,pending_review,parsed from email header and body
+email,email_07.eml,Λογιστήριο TechFlow,Λογιστήριο TechFlow <accounting@techflow-solutions.gr>,,,Τιμολόγιο #TF-2024-003 - Hardware Equipment,"Αγαπητοί συνεργάτες,
+
+Σας στέλνουμε το τιμολόγιο για τον εξοπλισμό υπολογιστών.
+
+Στοιχεία Τιμολογίου:
+- Αριθμός: TF-2024-003
+- Ημερομηνία: 23/01/2024
+- Προμηθευτής: Computer World SA
+- Καθαρή Αξία: €4,200.00
+- ΦΠΑ 24%: €1,008.00
+- Συνολικό Ποσό: €5,208.00
+
+Είδη:
+- Desktop Computer (3 τεμάχια): €2,100.00
+- Monitor 24"" (3 τεμάχια): €900.00
+- Keyboard & Mouse Set (3 σετ): €180.00
+- External HDD 2TB (2 τεμάχια): €240.00
+- UPS 650VA (3 τεμάχια): €450.00
+- Network Switch 8-port: €120.00
+- Cables & Accessories: €210.00
+
+Εγγύηση: 2 χρόνια
+
+Με εκτίμηση,
+Τμήμα Προμηθειών
+TechFlow Solutions
+
+[ATTACHMENT: invoice_TF-2024-003.pdf]",,,,,,,,EUR,pending_review,parsed from email header and body
+email,email_08.eml,Βασίλης Γεωργάκης,Βασίλης Γεωργάκης <vasilis@pharmnet.gr>,,,Pharmacy Management System,"Καλησπέρα,
+
+Είμαι ο Βασίλης Γεωργάκης, φαρμακοποιός με 3 φαρμακεία στην Αθήνα.
+
+Προσωπικά Στοιχεία:
+- Όνομα: Βασίλης Γεωργάκης
+- Email: vasilis@pharmnet.gr
+- Τηλέφωνο: 210-6677889
+- Εταιρεία: PharmNet - Δίκτυο Φαρμακείων
+- Θέση: Φαρμακοποιός - Ιδιοκτήτης
+
+Χρειαζόμαστε σύστημα που να διαχειρίζεται:
+
+1. Inventory Management:
+   - 2000+ φάρμακα ανά κατάστημα
+   - Ημερομηνίες λήξης
+   - Automatic reorder points
+   - Barcode scanning
+
+2. Sales & Billing:
+   - Integration με ΕΟΠΥΥ
+   - Ασφαλιστικές εταιρείες
+   - Συνταγές (ηλεκτρονικές & έντυπες)
+   - Αυτόματη τιμολόγηση
+
+3. Customer Management:
+   - Ιστορικό αγορών
+   - Allergies & medical notes
+   - Loyalty program
+
+4. Reporting:
+   - Πωλήσεις ανά κατάστημα
+   - Top selling products
+   - Financial reports
+
+Υπάρχει εμπειρία με pharmacy systems;
+
+Βασίλης Γεωργάκης
+PharmNet",,,,,,,,EUR,pending_review,parsed from email header and body
+email,email_09.eml,Λογιστήριο TechFlow,Λογιστήριο TechFlow <accounting@techflow-solutions.gr>,,,Τιμολόγιο #TF-2024-004 - Marketing Services,"Διοίκηση,
+
+Σας προωθούμε το τιμολόγιο για τις υπηρεσίες marketing.
+
+Στοιχεία Τιμολογίου:
+- Αριθμός: TF-2024-004
+- Ημερομηνία: 24/01/2024
+- Προμηθευτής: Digital Marketing Agency
+- Καθαρή Αξία: €1,600.00
+- ΦΠΑ 24%: €384.00
+- Συνολικό Ποσό: €1,984.00
+
+Υπηρεσίες Ιανουαρίου:
+- Social Media Management: €600.00
+- Google Ads Campaign: €500.00
+- SEO Optimization: €300.00
+- Content Creation: €200.00
+
+ROI: +25% σε web traffic
+
+Σας ευχαριστούμε,
+Λογιστήριο TechFlow Solutions
+
+[ATTACHMENT: invoice_TF-2024-004.pdf]",,,,,,,,EUR,pending_review,parsed from email header and body
+email,email_10.eml,Σοφία Αλεξάνδρου,Σοφία Αλεξάνδρου <sofia@greenfood.gr>,,,Food Delivery App Development,"Γεια σας,
+
+Ονομάζομαι Σοφία Αλεξάνδρου και είμαι ιδρυτής της GreenFood - healthy food delivery startup.
+
+Στοιχεία Επικοινωνίας:
+- Όνομα: Σοφία Αλεξάνδρου
+- Email: sofia@greenfood.gr
+- Κινητό: 6977-888999
+- Εταιρεία: GreenFood Delivery
+- Θέση: Founder & CEO
+- Έδρα: Θεσσαλονίκη
+
+Η ιδέα μας:
+Delivery app για healthy/organic φαγητό με focus στη βιωσιμότητα.
+
+Χρειαζόμαστε:
+
+1. Mobile App (iOS & Android):
+   - User registration/login
+   - Menu browsing με filters (vegan, gluten-free, etc.)
+   - Real-time order tracking
+   - Payment integration
+   - Rating system
+
+2. Restaurant Panel:
+   - Menu management
+   - Order notifications
+   - Sales analytics
+
+3. Delivery Dashboard:
+   - Driver assignment
+   - Route optimization
+   - Delivery tracking
+
+4. Admin Panel:
+   - User management
+   - Restaurant management
+   - Financial reports
+
+Έχουμε seed funding €50K.
+Στόχος: Launch σε 3 μήνες.
+
+Μπορείτε να μας βοηθήσετε;
+
+Σοφία Αλεξάνδρου
+GreenFood Delivery",,,,,,,,EUR,pending_review,parsed from email header and body
