@@ -35,6 +35,14 @@ def _persist_record(index: int, new_record: UnifiedRecord) -> None:
     st.session_state.records[index] = new_record
 
 
+def _rerun_app() -> None:
+    """Trigger a Streamlit rerun, compatible with newer and older APIs."""
+
+    rerun = getattr(st, "rerun", None) or getattr(st, "experimental_rerun", None)
+    if rerun:
+        rerun()
+
+
 def _edit_controls(record: UnifiedRecord) -> UnifiedRecord:
     """Render editable fields and return the updated record."""
 
@@ -66,7 +74,7 @@ def main() -> None:
 
     if st.sidebar.button("Reload data"):
         st.session_state.pop("records", None)
-        st.experimental_rerun()
+        _rerun_app()
 
     records = _load_session_records(data_dir)
 
