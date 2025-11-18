@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Iterable
 
 from .extractors import load_records
-from .quality import apply_quality_checks
 from .models import UnifiedRecord
 
 
@@ -29,9 +28,8 @@ def write_csv(records: Iterable[UnifiedRecord], output_path: Path) -> None:
 
 
 def run_pipeline(data_dir: Path, output_path: Path) -> Path:
-    """Load data, add quality statuses, and emit a CSV summary."""
+    """Load data from dummy folders, normalize it, and emit a CSV summary."""
 
-    raw_records = load_records(data_dir)
-    records = apply_quality_checks(raw_records)
+    records = load_records(data_dir)
     write_csv(records, output_path)
     return output_path

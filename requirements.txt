@@ -1,1 +1,1 @@
-streamlit
+# No external runtime dependencies; standard library only.
