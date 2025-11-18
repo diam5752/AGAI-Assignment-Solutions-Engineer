@@ -47,3 +47,18 @@ def test_mark_status_appends_new_note_cleanly():
     record = UnifiedRecord(source="email", source_name="msg.eml")
     flagged = mark_status(record, "needs_review", note=" check spacing ")
     assert flagged.notes == "check spacing"
+
+
+def test_records_to_rows_strips_newlines_and_whitespace():
+    record = UnifiedRecord(
+        source="email",
+        source_name="demo.eml",
+        customer_name="Demo User",
+        message="Line one\nLine two\r\nLine three",
+        notes="  Needs\n extra   review ",
+    )
+
+    rows = records_to_rows([record])
+
+    assert rows[0]["message"] == "Line one Line two Line three"
+    assert rows[0]["notes"] == "Needs extra review"

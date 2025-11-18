@@ -35,12 +35,19 @@ def _persist_record(index: int, new_record: UnifiedRecord) -> None:
     st.session_state.records[index] = new_record
 
 
+def _save_records(records: List[UnifiedRecord], output_path: Path) -> None:
+    """Write the in-memory records to disk."""
+
+    write_csv(records_to_rows(records), output_path)
+
+
 def _rerun_app() -> None:
     """Trigger a Streamlit rerun, compatible with newer and older APIs."""
 
     rerun = getattr(st, "rerun", None) or getattr(st, "experimental_rerun", None)
-    if rerun:
-        rerun()
+    if not rerun:
+        raise RuntimeError("Streamlit does not expose a rerun helper.")
+    rerun()
 
 
 def _edit_controls(record: UnifiedRecord) -> UnifiedRecord:
@@ -69,11 +76,22 @@ def main() -> None:
     """Launch a lightweight human-in-the-loop dashboard."""
 
     st.title("Human Review for Extracted Records")
+    last_action = st.session_state.get("last_action")
+    if last_action and last_action.get("message"):
+        level = last_action.get("level", "info")
+        renderer = {
+            "success": st.success,
+            "warning": st.warning,
+            "info": st.info,
+            "error": st.error,
+        }.get(level, st.info)
+        renderer(last_action["message"])
     data_dir = Path(st.sidebar.text_input("Data directory", value="dummy_data"))
     output_path = Path(st.sidebar.text_input("Output CSV", value="output/reviewed_records.csv"))
 
     if st.sidebar.button("Reload data"):
         st.session_state.pop("records", None)
+        st.session_state.pop("selected_row", None)
         _rerun_app()
 
     records = _load_session_records(data_dir)
@@ -121,45 +139,66 @@ def main() -> None:
         st.success("No alerts found for the current selection.")
 
     if not filtered_records:
+        st.session_state.pop("selected_row", None)
         return
 
+    max_index = max(len(filtered_records) - 1, 0)
+    selected_row = st.session_state.get("selected_row", 0)
+    selected_row = min(selected_row, max_index)
     selected = st.number_input(
         "Select row to review",
         min_value=0,
-        max_value=max(len(filtered_records) - 1, 0),
+        max_value=max_index,
         step=1,
+        value=selected_row,
+        format="%d",
     )
+    selected = int(selected)
+    st.session_state["selected_row"] = selected
     record_index, record = filtered_records[selected]
 
     st.markdown(f"**Source:** {record.source} — {record.source_name}")
+    st.caption(f"Current status: {record.status} | Notes: {record.notes or 'No reviewer notes yet.'}")
     edited = _edit_controls(record)
+
+    def _commit_action(index: int, updated: UnifiedRecord, message: str, level: str) -> None:
+        """Persist record updates, sync to disk, and log a toast message."""
+
+        _persist_record(index, updated)
+        _save_records(st.session_state.records, output_path)
+        st.session_state["last_action"] = {"message": message, "level": level}
 
     col1, col2, col3 = st.columns(3)
     with col1:
         if st.button("Approve"):
-            _persist_record(record_index, mark_status(edited, "approved"))
-            st.success(f"Record approved. Notes: {edited.notes or 'No quality issues noted.'}")
+            updated = mark_status(edited, "approved")
+            message = f"Record '{record.source_name}' approved. Notes: {edited.notes or 'No quality issues noted.'}"
+            _commit_action(record_index, updated, message, "success")
+            st.success(message)
     with col2:
         if st.button("Reject"):
-            _persist_record(
-                record_index, mark_status(edited, "rejected", note="rejected by reviewer")
+            updated = mark_status(edited, "rejected", note="rejected by reviewer")
+            message = (
+                f"Record '{record.source_name}' rejected. "
+                f"Review notes: {edited.notes or 'no notes provided.'}"
             )
-            st.warning(
-                f"Record rejected. Review notes for context: {edited.notes or 'no notes provided.'}"
-            )
+            _commit_action(record_index, updated, message, "warning")
+            st.warning(message)
     with col3:
         if st.button("Mark needs review"):
-            _persist_record(
-                record_index,
-                mark_status(edited, "needs_review", note="sent back for edits"),
+            updated = mark_status(edited, "needs_review", note="sent back for edits")
+            message = (
+                f"Record '{record.source_name}' flagged for follow-up. "
+                f"Quality findings: {edited.notes or 'none recorded.'}"
             )
-            st.info(
-                f"Record flagged for follow-up. Quality findings: {edited.notes or 'none recorded.'}"
-            )
+            _commit_action(record_index, updated, message, "info")
+            st.info(message)
 
     if st.button("Save CSV"):
-        write_csv(records_to_rows(st.session_state.records), output_path)
-        st.success(f"Saved to {output_path}")
+        _save_records(st.session_state.records, output_path)
+        message = f"Saved {len(st.session_state.records)} records to {output_path}"
+        st.session_state["last_action"] = {"message": message, "level": "success"}
+        st.success(message)
 
 
 if __name__ == "__main__":
