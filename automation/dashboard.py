@@ -13,6 +13,7 @@ if __package__ in {None, ""}:
 
 from automation.models import UnifiedRecord
 from automation.pipeline import write_csv
+from automation.sinks import push_to_google_sheets, write_excel
 from automation.review import (
     apply_edits,
     load_review_records,
@@ -35,10 +36,85 @@ def _persist_record(index: int, new_record: UnifiedRecord) -> None:
     st.session_state.records[index] = new_record
 
 
-def _save_records(records: List[UnifiedRecord], output_path: Path) -> None:
-    """Write the in-memory records to disk."""
+def _save_records(records: List[UnifiedRecord], output_path: Path) -> List[dict]:
+    """Write the in-memory records to disk and return serialized rows."""
 
-    write_csv(records_to_rows(records), output_path)
+    rows = records_to_rows(records)
+    write_csv(rows, output_path)
+    return rows
+
+
+def _export_sink(
+    rows: List[dict],
+    sink: str,
+    output_path: Path,
+    excel_path: Path | None,
+    spreadsheet_id: str,
+    worksheet_title: str,
+    service_account_path: Path | None,
+) -> tuple[str | None, str | None]:
+    """Run the configured export sink and return a status message."""
+
+    if sink == "csv":
+        return None, None
+
+    if sink == "excel":
+        target = excel_path or output_path.with_suffix(".xlsx")
+        try:
+            write_excel(rows, target)
+            return f"Excel export saved to {target}", "success"
+        except Exception as exc:  # pragma: no cover - defensive UI feedback
+            return f"Excel export failed: {exc}", "error"
+
+    if sink == "sheets":
+        if not spreadsheet_id or not worksheet_title or not service_account_path:
+            return (
+                "Provide spreadsheet ID, worksheet title, and a service account file to sync with Google Sheets.",
+                "warning",
+            )
+        if not service_account_path.exists():
+            return (
+                f"Service account file not found at {service_account_path}.",
+                "warning",
+            )
+
+        approved_rows = [row for row in rows if row.get("status") == "approved"]
+        if not approved_rows:
+            return ("No approved records to push to Google Sheets yet.", "info")
+        try:
+            push_to_google_sheets(
+                approved_rows,
+                spreadsheet_id=spreadsheet_id,
+                worksheet_title=worksheet_title,
+                service_account_path=service_account_path,
+            )
+            return (
+                f"Pushed {len(approved_rows)} approved records to Google Sheets worksheet '{worksheet_title}'.",
+                "success",
+            )
+        except Exception as exc:  # pragma: no cover - defensive UI feedback
+            return (f"Google Sheets sync failed: {exc}", "error")
+
+    return None, None
+
+
+def _combined_feedback(
+    primary_message: str, primary_level: str, export_feedback: tuple[str | None, str | None]
+) -> tuple[str, str]:
+    """Merge action and export messages while keeping the highest-severity level."""
+
+    export_message, export_level = export_feedback
+    if not export_message:
+        return primary_message, primary_level
+
+    combined_message = f"{primary_message} | {export_message}"
+    severity = {"success": 0, "info": 1, "warning": 2, "error": 3}
+    combined_level = (
+        export_level
+        if severity.get(export_level or "info", 0) > severity.get(primary_level, 0)
+        else primary_level
+    )
+    return combined_message, combined_level
 
 
 def _rerun_app() -> None:
@@ -88,6 +164,32 @@ def main() -> None:
         renderer(last_action["message"])
     data_dir = Path(st.sidebar.text_input("Data directory", value="dummy_data"))
     output_path = Path(st.sidebar.text_input("Output CSV", value="output/reviewed_records.csv"))
+
+    sink = st.sidebar.selectbox(
+        "Export sink (CSV always saved)",
+        options=["csv", "excel", "sheets"],
+        format_func=lambda value: value.upper(),
+    )
+    excel_default = output_path.with_suffix(".xlsx")
+    excel_path_value = st.sidebar.text_input("Excel output", value=str(excel_default))
+    excel_path = Path(excel_path_value) if excel_path_value else None
+
+    st.sidebar.markdown("**Google Sheets settings**")
+    spreadsheet_id = st.sidebar.text_input("Spreadsheet ID")
+    worksheet_title = st.sidebar.text_input("Worksheet title", value="Sheet1")
+    service_account_file = st.sidebar.text_input("Service account JSON", value="service_account.json")
+    service_account_path = Path(service_account_file) if service_account_file else None
+
+    if sink == "sheets":
+        sheets_ready = bool(spreadsheet_id and worksheet_title and service_account_file)
+        if sheets_ready and service_account_path and service_account_path.exists():
+            st.sidebar.success("Google Sheets settings look valid.")
+        elif sheets_ready:
+            st.sidebar.warning(f"Service account file not found at {service_account_path}.")
+        else:
+            st.sidebar.warning(
+                "Enter a Spreadsheet ID, worksheet title, and a service account JSON file to enable sync."
+            )
 
     if st.sidebar.button("Reload data"):
         st.session_state.pop("records", None)
@@ -161,12 +263,30 @@ def main() -> None:
     st.caption(f"Current status: {record.status} | Notes: {record.notes or 'No reviewer notes yet.'}")
     edited = _edit_controls(record)
 
+    renderers = {
+        "success": st.success,
+        "warning": st.warning,
+        "info": st.info,
+        "error": st.error,
+    }
+
     def _commit_action(index: int, updated: UnifiedRecord, message: str, level: str) -> None:
-        """Persist record updates, sync to disk, and log a toast message."""
+        """Persist record updates, sync to disk, trigger exports, and log a toast."""
 
         _persist_record(index, updated)
-        _save_records(st.session_state.records, output_path)
-        st.session_state["last_action"] = {"message": message, "level": level}
+        rows = _save_records(st.session_state.records, output_path)
+        export_feedback = _export_sink(
+            rows,
+            sink=sink,
+            output_path=output_path,
+            excel_path=excel_path,
+            spreadsheet_id=spreadsheet_id.strip(),
+            worksheet_title=worksheet_title.strip(),
+            service_account_path=service_account_path,
+        )
+        combined_message, combined_level = _combined_feedback(message, level, export_feedback)
+        st.session_state["last_action"] = {"message": combined_message, "level": combined_level}
+        renderers.get(combined_level, st.info)(combined_message)
 
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -174,7 +294,6 @@ def main() -> None:
             updated = mark_status(edited, "approved")
             message = f"Record '{record.source_name}' approved. Notes: {edited.notes or 'No quality issues noted.'}"
             _commit_action(record_index, updated, message, "success")
-            st.success(message)
     with col2:
         if st.button("Reject"):
             updated = mark_status(edited, "rejected", note="rejected by reviewer")
@@ -183,7 +302,6 @@ def main() -> None:
                 f"Review notes: {edited.notes or 'no notes provided.'}"
             )
             _commit_action(record_index, updated, message, "warning")
-            st.warning(message)
     with col3:
         if st.button("Mark needs review"):
             updated = mark_status(edited, "needs_review", note="sent back for edits")
@@ -192,13 +310,22 @@ def main() -> None:
                 f"Quality findings: {edited.notes or 'none recorded.'}"
             )
             _commit_action(record_index, updated, message, "info")
-            st.info(message)
 
-    if st.button("Save CSV"):
-        _save_records(st.session_state.records, output_path)
+    if st.button("Save"):
+        rows = _save_records(st.session_state.records, output_path)
+        export_feedback = _export_sink(
+            rows,
+            sink=sink,
+            output_path=output_path,
+            excel_path=excel_path,
+            spreadsheet_id=spreadsheet_id.strip(),
+            worksheet_title=worksheet_title.strip(),
+            service_account_path=service_account_path,
+        )
         message = f"Saved {len(st.session_state.records)} records to {output_path}"
-        st.session_state["last_action"] = {"message": message, "level": "success"}
-        st.success(message)
+        combined_message, combined_level = _combined_feedback(message, "success", export_feedback)
+        st.session_state["last_action"] = {"message": combined_message, "level": combined_level}
+        renderers.get(combined_level, st.info)(combined_message)
 
 
 if __name__ == "__main__":
