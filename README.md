@@ -55,6 +55,13 @@
     └── templates/                      # CSV template
 ```
 
+## Εξαγωγές & Αυθεντικοποίηση
+
+- Προεπιλογή: τα ενιαία rows γράφονται σε CSV (`output/unified_records.csv`).
+- Excel: χρησιμοποιήστε την επιλογή `--sink=excel` για να παραχθεί επίσης αρχείο `output/unified_records.xlsx` με το ίδιο σχήμα.
+- Google Sheets: απαιτείται service account JSON (π.χ. `credentials/service_account.json`) και το `spreadsheet_id` από το URL του Sheet. Δημιουργήστε ή μοιραστείτε το φύλλο με το service account email και καλέστε το CLI με `--sink=sheets --spreadsheet-id <ID> --service-account <path> --worksheet <tab name>`.
+- Το template στη διαδρομή `dummy_data/templates/data_extraction_template.csv` δείχνει τα header names που χρησιμοποιούνται σε όλα τα sinks.
+
 ## Στόχος
 
 Δημιουργήστε ένα πλήρες automation solution που:

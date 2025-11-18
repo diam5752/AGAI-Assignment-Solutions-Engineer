@@ -91,7 +91,7 @@ def main() -> None:
             st.info("Record flagged for follow-up")
 
     if st.button("Save CSV"):
-        write_csv(st.session_state.records, output_path)
+        write_csv(records_to_rows(st.session_state.records), output_path)
         st.success(f"Saved to {output_path}")
 
 

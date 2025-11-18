@@ -20,6 +20,17 @@ The CLI reads from `dummy_data` by default and writes a CSV with the unified rec
 python -m automation.cli --data-dir dummy_data --output output/unified_records.csv
 ```
 
+Choose an optional sink to mirror the same rows:
+- Excel: `python -m automation.cli --sink=excel --excel-output output/unified_records.xlsx`
+- Google Sheets: requires a service account JSON (download it to `credentials/service_account.json`) shared with the target sheet.
+  ```bash
+  python -m automation.cli \
+    --sink=sheets \
+    --spreadsheet-id <your_sheet_id> \
+    --worksheet Sheet1 \
+    --service-account credentials/service_account.json
+  ```
+
 ## Launch the review dashboard
 Use the same data directory to review/edit records, approve or reject them, and export a reviewed CSV.
 ```bash
