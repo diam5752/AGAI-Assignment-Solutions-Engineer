@@ -1,11 +1,15 @@
 """Utilities for parsing forms, invoices, and emails into unified records."""
 from email import policy
 from email.parser import BytesParser
+import logging
 import re
 from pathlib import Path
 from typing import List
 
 from .models import UnifiedRecord
+
+
+logger = logging.getLogger(__name__)
 
 
 def _read_file(path: Path) -> str:
@@ -119,13 +123,26 @@ def load_records(data_dir: Path) -> List[UnifiedRecord]:
     invoices_dir = data_dir / "invoices"
     emails_dir = data_dir / "emails"
 
+    logger.info("Loading records from %s", data_dir)
+
     for form_path in sorted(forms_dir.glob("*.html")):
-        records.append(parse_form(form_path))
+        try:
+            records.append(parse_form(form_path))
+        except Exception:  # pragma: no cover - exercised via caplog
+            logger.exception("Failed to parse form %s", form_path)
 
     for invoice_path in sorted(invoices_dir.glob("*.html")):
-        records.append(parse_invoice(invoice_path))
+        try:
+            records.append(parse_invoice(invoice_path))
+        except Exception:  # pragma: no cover - exercised via caplog
+            logger.exception("Failed to parse invoice %s", invoice_path)
 
     for email_path in sorted(emails_dir.glob("*.eml")):
-        records.append(parse_email(email_path))
+        try:
+            records.append(parse_email(email_path))
+        except Exception:  # pragma: no cover - exercised via caplog
+            logger.exception("Failed to parse email %s", email_path)
+
+    logger.info("Loaded %d records", len(records))
 
     return records

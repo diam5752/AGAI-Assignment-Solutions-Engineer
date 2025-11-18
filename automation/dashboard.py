@@ -1,22 +1,12 @@
 """Streamlit dashboard to review, edit, and approve extracted records."""
 from pathlib import Path
 from typing import List
-import sys
 
 import streamlit as st
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from automation.pipeline import write_csv
-from automation.review import (
-    apply_edits,
-    load_review_records,
-    mark_status,
-    records_to_rows,
-)
-from automation.models import UnifiedRecord
+from .pipeline import write_csv
+from .review import apply_edits, load_review_records, mark_status, records_to_rows
+from .models import UnifiedRecord
 
 
 def _load_session_records(data_dir: Path) -> List[UnifiedRecord]:

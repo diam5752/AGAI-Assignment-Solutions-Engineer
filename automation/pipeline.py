@@ -1,10 +1,15 @@
 """Lightweight pipeline orchestration for the demo automation project."""
 import csv
+import logging
 from pathlib import Path
 from typing import Iterable
 
 from .extractors import load_records
+from .quality import apply_quality_checks
 from .models import UnifiedRecord
+
+
+logger = logging.getLogger(__name__)
 
 
 def ensure_output_dir(output_path: Path) -> None:
@@ -28,8 +33,13 @@ def write_csv(records: Iterable[UnifiedRecord], output_path: Path) -> None:
 
 
 def run_pipeline(data_dir: Path, output_path: Path) -> Path:
-    """Load data from dummy folders, normalize it, and emit a CSV summary."""
+    """Load data, add quality statuses, and emit a CSV summary."""
 
-    records = load_records(data_dir)
+    logger.info("Pipeline starting for data dir %s", data_dir)
+    raw_records = load_records(data_dir)
+    logger.info("Loaded %d raw records", len(raw_records))
+    records = apply_quality_checks(raw_records)
+    logger.info("Annotated %d records with quality statuses", len(records))
     write_csv(records, output_path)
+    logger.info("Wrote CSV output to %s", output_path)
     return output_path

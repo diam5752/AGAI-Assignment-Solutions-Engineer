@@ -1,7 +1,11 @@
 """Lightweight quality checks to keep extracted records trustworthy."""
+import logging
 from typing import Iterable, List
 
 from .models import UnifiedRecord
+
+
+logger = logging.getLogger(__name__)
 
 
 def validate_record(record: UnifiedRecord) -> List[str]:
@@ -46,6 +50,7 @@ def apply_quality_checks(records: Iterable[UnifiedRecord]) -> List[UnifiedRecord
         if issues:
             note = "; ".join(issues)
             record.notes = f"{record.notes or ''} quality: {note}".strip()
+            logger.warning("Quality issues for %s: %s", record.source_name, note)
         updated.append(record)
 
     return updated

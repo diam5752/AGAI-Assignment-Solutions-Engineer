@@ -3,6 +3,7 @@ import argparse
 from pathlib import Path
 
 from .pipeline import run_pipeline
+from .logging_utils import configure_logging
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -27,6 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     """Entrypoint for running the pipeline from the command line."""
 
+    configure_logging()
     args = build_parser().parse_args()
     output_path = run_pipeline(args.data_dir, args.output)
     print(f"Wrote {output_path}")
