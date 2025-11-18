@@ -41,6 +41,7 @@ def test_parse_email_structured_contact_details():
     assert record.company == "TechCorp AE"
     assert "CRM" in record.service
     assert "συνάντηση".casefold() in record.message.casefold()
+    assert record.submission_date == "2024-01-20"
 
 
 def test_parse_email_uses_header_when_body_missing_email(tmp_path):
