@@ -13,8 +13,7 @@ if __package__ in {None, ""}:
     sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from automation.models import UnifiedRecord
-from automation.pipeline import write_csv, auto_sheets_target
-from automation.sinks import push_to_google_sheets, write_excel
+from automation.pipeline import write_csv
 from automation.quality import validate_record
 from automation.review import apply_edits, load_review_records, mark_status
 from automation.templates import records_to_template_rows
@@ -26,7 +25,7 @@ def _load_session_records(data_dir: Path) -> List[UnifiedRecord]:
     if "records" not in st.session_state:
         loaded = load_review_records(data_dir)
         st.session_state.records = loaded
-        st.session_state.original_records = copy.deepcopy(loaded)
+        st.session_state.original_records = [copy.deepcopy(record) for record in loaded]
     return st.session_state.records
 
 
@@ -36,179 +35,11 @@ def _persist_record(index: int, new_record: UnifiedRecord) -> None:
     st.session_state.records[index] = new_record
 
 
-def _save_records(records: List[UnifiedRecord], output_path: Path) -> List[dict]:
-    """Write the in-memory records to disk and return template-aligned rows."""
+def _save_records(records: List[UnifiedRecord], output_path: Path) -> None:
+    """Write the in-memory records to disk."""
 
     template_rows = records_to_template_rows(records)
     write_csv(template_rows, output_path)
-    return template_rows
-
-
-def _export_sink(
-    records: List[UnifiedRecord],
-    template_rows: List[dict],
-    sink: str,
-    output_path: Path,
-    excel_path: Path | None,
-    spreadsheet_id: str,
-    worksheet_title: str,
-    service_account_path: Path | None,
-    auto_config: dict | None = None,
-) -> tuple[str | None, str | None]:
-    """Run the configured export sink and return a status message."""
-
-    if sink == "csv":
-        return None, None
-
-    if sink == "excel":
-        target = excel_path or output_path.with_suffix(".xlsx")
-        try:
-            write_excel(template_rows, target)
-            return f"Excel export saved to {target}", "success"
-        except Exception as exc:  # pragma: no cover - defensive UI feedback
-            return f"Excel export failed: {exc}", "error"
-
-    if sink == "sheets":
-        if not (spreadsheet_id and worksheet_title and service_account_path) and auto_config:
-            spreadsheet_id = auto_config.get("spreadsheet_id", spreadsheet_id)
-            worksheet_title = auto_config.get("worksheet_title", worksheet_title or "Sheet1")
-            service_account_path = auto_config.get("service_account_path", service_account_path)
-        if not spreadsheet_id or not worksheet_title or not service_account_path:
-            return (
-                "Provide spreadsheet ID, worksheet title, and a service account file to sync with Google Sheets.",
-                "warning",
-            )
-        if not service_account_path.exists():
-            return (
-                f"Service account file not found at {service_account_path}.",
-                "warning",
-            )
-
-        approved_rows = [
-            template_rows[index] for index, record in enumerate(records) if record.status == "approved"
-        ]
-        if not approved_rows:
-            return ("No approved records to push to Google Sheets yet.", "info")
-        try:
-            push_to_google_sheets(
-                approved_rows,
-                spreadsheet_id=spreadsheet_id,
-                worksheet_title=worksheet_title,
-                service_account_path=service_account_path,
-            )
-            return (
-                f"Pushed {len(approved_rows)} approved records to Google Sheets worksheet '{worksheet_title}'.",
-                "success",
-            )
-        except Exception as exc:  # pragma: no cover - defensive UI feedback
-            return (f"Google Sheets sync failed: {exc}", "error")
-
-    return None, None
-
-
-def _combined_feedback(
-    primary_message: str, primary_level: str, export_feedback: tuple[str | None, str | None]
-) -> tuple[str, str]:
-    """Merge action and export messages while keeping the highest-severity level."""
-
-    export_message, export_level = export_feedback
-    if not export_message:
-        return primary_message, primary_level
-
-    combined_message = f"{primary_message} | {export_message}"
-    severity = {"success": 0, "info": 1, "warning": 2, "error": 3}
-    combined_level = (
-        export_level
-        if severity.get(export_level or "info", 0) > severity.get(primary_level, 0)
-        else primary_level
-    )
-    return combined_message, combined_level
-
-
-def _rerun_app() -> None:
-    """Trigger a Streamlit rerun, compatible with newer and older APIs."""
-
-    rerun = getattr(st, "rerun", None) or getattr(st, "experimental_rerun", None)
-    if not rerun:
-        raise RuntimeError("Streamlit does not expose a rerun helper.")
-    rerun()
-
-
-def _edit_controls(record: UnifiedRecord) -> UnifiedRecord:
-    """Render editable fields and return the updated record."""
-
-    st.subheader("Edit fields")
-    customer_name = st.text_input("Customer", value=record.customer_name or "")
-    email = st.text_input("Email", value=record.email or "")
-    phone = st.text_input("Phone", value=record.phone or "")
-    total_amount = st.number_input(
-        "Total Amount", value=record.total_amount or 0.0, step=0.01, format="%.2f"
-    )
-    notes = st.text_area("Notes", value=record.notes or "")
-
-    updates = {
-        "customer_name": customer_name or None,
-        "email": email or None,
-        "phone": phone or None,
-        "total_amount": float(total_amount) if total_amount else None,
-        "notes": notes or None,
-    }
-    return apply_edits(record, updates)
-
-
-def _status_counters(records: List[UnifiedRecord]) -> None:
-    """Summarize review progress so reviewers see real-time queue health."""
-
-    if not records:
-        return
-
-    status_counts: dict[str, int] = {}
-    for record in records:
-        status_counts[record.status] = status_counts.get(record.status, 0) + 1
-
-    top_statuses = sorted(status_counts.items(), key=lambda item: item[0])
-    columns = st.columns(len(top_statuses))
-    for column, (status, count) in zip(columns, top_statuses):
-        column.metric(label=status.replace("_", " ").title(), value=count)
-
-
-def _queue_dashboard(records: List[UnifiedRecord]) -> None:
-    """Render a real-time dashboard summarizing queue health and progress."""
-
-    total = len(records)
-    approved = len([record for record in records if record.status == "approved"])
-    needs_review = len([record for record in records if record.status == "needs_review"])
-    rejected = len([record for record in records if record.status == "rejected"])
-    ready_for_export = len([record for record in records if record.status == "auto_valid"])
-
-    top_cols = st.columns(4)
-    top_cols[0].metric("Total records", total)
-    top_cols[1].metric("Approved", approved)
-    top_cols[2].metric("Needs review", needs_review)
-    top_cols[3].metric("Rejected", rejected)
-
-    completion_ratio = approved / total if total else 0
-    st.progress(completion_ratio)
-    st.caption(f"{approved} of {total} ready for export")
-
-    badge_cols = st.columns(3)
-    badge_cols[0].metric("Ready to auto-export", ready_for_export)
-    badge_cols[1].metric("Pending manual checks", max(total - (approved + rejected), 0))
-    badge_cols[2].metric("Human-in-loop flags", needs_review)
-
-
-def _source_overview(records: List[UnifiedRecord]) -> None:
-    """Surface how many records originate from each capture channel."""
-
-    if not records:
-        return
-
-    source_counts: dict[str, int] = {}
-    for record in records:
-        source_counts[record.source] = source_counts.get(record.source, 0) + 1
-
-    st.caption("Mix of sources (forms, emails, invoices) currently loaded")
-    st.bar_chart(source_counts)
 
 
 def _detected_issues(record: UnifiedRecord) -> List[str]:
@@ -229,17 +60,20 @@ def _inject_theme() -> None:
             :root {
                 --primary-color: #0f766e;
                 --accent-color: #f97316;
-                --surface-color: #0f172a;
+                --surface-color: #0b1220;
                 --card-color: #111827;
                 --text-strong: #f8fafc;
             }
-            div[data-testid="stSidebar"] {background: var(--surface-color); color: var(--text-strong);} 
-            div[data-testid="stSidebar"] h1, div[data-testid="stSidebar"] h2, div[data-testid="stSidebar"] label {color: var(--text-strong);} 
-            .stButton>button {width: 100%; padding: 0.8rem; font-weight: 700; border-radius: 0.5rem;}
+            body {background-color: var(--surface-color);}
+            [data-testid="stAppViewContainer"] {background-color: var(--surface-color); color: var(--text-strong);}
+            section.main h1, section.main h2, section.main h3, section.main label {color: var(--text-strong);}
+            .stButton>button {width: 100%; padding: 0.9rem; font-weight: 700; border-radius: 0.6rem; font-size: 1rem;}
             .stButton>button[data-baseweb="button"] {background: var(--primary-color); color: white; border: none;}
+            .stButton>button[kind="secondary"] {background: #1f2937; color: var(--text-strong);}
             .dashboard-card {background: var(--card-color); padding: 1rem; border-radius: 0.75rem; border: 1px solid #1f2937;}
-            .alert-card {border-left: 6px solid var(--accent-color); padding: 0.75rem; background: rgba(249,115,22,0.08); border-radius: 0.6rem; margin-bottom: 0.5rem;}
+            .alert-card {border-left: 6px solid var(--accent-color); padding: 0.75rem; background: rgba(249,115,22,0.12); border-radius: 0.6rem; margin-bottom: 0.5rem;}
             .section-title {font-size: 1.05rem; font-weight: 700; color: var(--text-strong); margin-top: 0.5rem;}
+            .record-panel {background: #0c1a2c; border: 1px solid #1f2937; border-radius: 0.75rem; padding: 1rem;}
         </style>
         """,
         unsafe_allow_html=True,
@@ -252,356 +86,202 @@ def _step_selected_row(delta: int, max_index: int) -> int:
     current = int(st.session_state.get("selected_row", 0))
     updated = min(max(current + delta, 0), max_index)
     st.session_state["selected_row"] = updated
-    st.session_state["selected_row_input"] = updated
     return updated
 
 
+def _summary_panel(records: List[UnifiedRecord]) -> None:
+    """Display real-time counts of review statuses."""
+
+    status_labels = {
+        "approved": "Approved",
+        "needs_review": "Pending",
+        "rejected": "Rejected",
+        "auto_valid": "Ready",
+        "pending_review": "Pending",
+        "pending": "Pending",
+    }
+    counts: dict[str, int] = {"total": len(records)}
+    for record in records:
+        label = status_labels.get(record.status, record.status)
+        counts[label] = counts.get(label, 0) + 1
+
+    st.markdown("<div class='section-title'>Review overview</div>", unsafe_allow_html=True)
+    cols = st.columns(4)
+    cols[0].metric("Total", counts.get("total", 0))
+    cols[1].metric("Pending", counts.get("Pending", 0))
+    cols[2].metric("Approved", counts.get("Approved", 0))
+    cols[3].metric("Rejected", counts.get("Rejected", 0))
+
+
+def _issues_panel(records: List[UnifiedRecord]) -> None:
+    """List validation issues for each record in a dedicated panel."""
+
+    st.markdown("<div class='section-title'>Validation alerts</div>", unsafe_allow_html=True)
+    alerts = []
+    for index, record in enumerate(records):
+        issues = _detected_issues(record)
+        if issues:
+            alerts.append((index, record, issues))
+
+    if not alerts:
+        st.success("No validation issues detected across the queue.")
+        return
+
+    for index, record, issues in alerts:
+        st.markdown(
+            f"<div class='alert-card'><strong>Row {index + 1}:</strong> {record.source_name}</div>",
+            unsafe_allow_html=True,
+        )
+        for issue in issues:
+            st.warning(issue)
+
+
+def _record_table(records: List[UnifiedRecord]) -> None:
+    """Show a quick table of records and their statuses."""
+
+    preview_rows = []
+    for idx, record in enumerate(records):
+        preview_rows.append(
+            {
+                "#": idx + 1,
+                "Customer": record.customer_name,
+                "Email": record.email,
+                "Total": record.total_amount,
+                "Status": record.status,
+            }
+        )
+    st.dataframe(preview_rows, use_container_width=True, height=320)
+
+
+def _selected_record_details(record: UnifiedRecord) -> None:
+    """Present key facts for the current record."""
+
+    st.markdown(
+        f"**Source:** {record.source_name or record.source} &nbsp;|&nbsp; **Status:** {record.status}",
+        unsafe_allow_html=True,
+    )
+    detail_cols = st.columns(2)
+    with detail_cols[0]:
+        st.write(
+            f"**Customer:** {record.customer_name or 'Unknown'}\n"
+            f"**Email:** {record.email or 'Not provided'}\n"
+            f"**Phone:** {record.phone or 'Not provided'}"
+        )
+    with detail_cols[1]:
+        st.write(
+            f"**Service:** {record.service or 'Not captured'}\n"
+            f"**Total:** {record.total_amount or 'n/a'}\n"
+            f"**Notes:** {record.notes or 'No notes yet.'}"
+        )
+
+
 def main() -> None:
-    """Launch a lightweight human-in-the-loop dashboard."""
+    """Launch a streamlined human-in-the-loop dashboard."""
 
     st.set_page_config(page_title="Review Console", layout="wide")
     _inject_theme()
 
-    st.title("Human Review for Extracted Records")
-    st.caption(
-        "Approve high-confidence records faster while keeping exports aligned with the template."
-    )
-    st.info(
-        "Load the extracted dataset, filter to the records you want, then review each row using the navigation controls."
-    )
-    last_action = st.session_state.get("last_action")
-    if last_action and last_action.get("message"):
-        level = last_action.get("level", "info")
-        renderer = {
-            "success": st.success,
-            "warning": st.warning,
-            "info": st.info,
-            "error": st.error,
-        }.get(level, st.info)
-        renderer(last_action["message"])
-    st.sidebar.header("Load & filter data")
-    data_dir = Path(
-        st.sidebar.text_input(
-            "Data directory", value="dummy_data", help="Folder with forms, emails, and invoices."
-        )
-    )
-    output_path = Path(
-        st.sidebar.text_input(
-            "Output CSV", value="output/reviewed_records.csv", help="Where reviewed rows are stored."
-        )
-    )
+    st.title("Review Console")
+    st.caption("Approve, correct, or reject captured customer records with full control.")
 
-    auto_sheets_config = auto_sheets_target()
-
-    sink = st.sidebar.selectbox(
-        "Export sink (CSV always saved)",
-        options=["csv", "excel", "sheets"],
-        format_func=lambda value: value.upper(),
-        help="Pick the extra destination to mirror approved rows."
-    )
-    excel_default = output_path.with_suffix(".xlsx")
-    excel_path_value = st.sidebar.text_input("Excel output", value=str(excel_default))
-    excel_path = Path(excel_path_value) if excel_path_value else None
-
-    sheets_sync_click = False
-    with st.sidebar.expander("Google Sheets sync", expanded=sink == "sheets"):
-        default_spreadsheet = (
-            auto_sheets_config["spreadsheet_id"] if auto_sheets_config else ""
-        )
-        spreadsheet_id = st.text_input(
-            "Spreadsheet ID",
-            value=default_spreadsheet,
-            help="Copied from the Google Sheet URL.",
-        )
-        default_worksheet = auto_sheets_config["worksheet_title"] if auto_sheets_config else "Sheet1"
-        worksheet_title = st.text_input("Worksheet title", value=default_worksheet)
-        default_account = (
-            str(auto_sheets_config["service_account_path"]) if auto_sheets_config else "service_account.json"
-        )
-        service_account_file = st.text_input(
-            "Service account JSON",
-            value=default_account,
-        )
-        service_account_path = Path(service_account_file) if service_account_file else None
-
-        if auto_sheets_config:
-            st.caption(
-                "Stored settings detected. Leave the fields above as-is or click the button to sync immediately."
-            )
-            sheets_sync_click = st.button("Sync approved rows now", use_container_width=True)
-
-        if sink == "sheets":
-            sheets_ready = bool(spreadsheet_id and worksheet_title and service_account_file)
-            if sheets_ready and service_account_path and service_account_path.exists():
-                st.success("Google Sheets settings look valid.")
-            elif sheets_ready:
-                st.warning(f"Service account file not found at {service_account_path}.")
-            else:
-                st.info(
-                    "Enter a Spreadsheet ID, worksheet title, and a service account JSON file to enable sync."
-                )
-
-    st.sidebar.info(
-        "Workflow: 1) Load data  2) Filter queue  3) Navigate rows  4) Edit fields  5) Approve/Reject/Send for review."
-    )
-
-    if st.sidebar.button("Reload data"):
-        st.session_state.pop("records", None)
-        st.session_state.pop("selected_row", None)
-        _rerun_app()
+    data_dir = Path("dummy_data")
+    output_path = Path("output/reviewed_records.csv")
 
     records = _load_session_records(data_dir)
-
-    if sheets_sync_click:
-        sidebar_rows = _save_records(st.session_state.records, output_path)
-        message, level = _export_sink(
-            st.session_state.records,
-            sidebar_rows,
-            sink="sheets",
-            output_path=output_path,
-            excel_path=excel_path,
-            spreadsheet_id=spreadsheet_id.strip(),
-            worksheet_title=worksheet_title.strip(),
-            service_account_path=service_account_path,
-            auto_config=auto_sheets_config,
-        )
-        if message:
-            sidebar_renderer = {
-                "success": st.sidebar.success,
-                "warning": st.sidebar.warning,
-                "info": st.sidebar.info,
-                "error": st.sidebar.error,
-            }
-            sidebar_renderer.get(level or "info", st.sidebar.info)(message)
-
-    st.subheader("Live dashboard")
-    with st.container():
-        _queue_dashboard(records)
-        _source_overview(records)
-
-    st.subheader("Review progress snapshot")
-    progress_cols = st.columns([2, 1])
-    with progress_cols[0]:
-        _status_counters(records)
-        st.caption("Each status shows how many rows are in that part of the review pipeline.")
-    with progress_cols[1]:
-        st.markdown("**Statuses legend**")
-        st.markdown(
-            "- ✅ **Approved**: ready for export\n"
-            "- 🚧 **Needs review**: flagged by checks or reviewer\n"
-            "- ❌ **Rejected**: excluded from exports"
-        )
-    sources = sorted({record.source for record in records})
-    statuses = sorted({record.status for record in records})
-    selected_sources = st.sidebar.multiselect("Filter by source", sources, default=sources)
-    selected_statuses = st.sidebar.multiselect("Filter by status", statuses, default=statuses)
-    search_term = st.sidebar.text_input("Search customer or service").lower()
-
-    def _matches_search(record: UnifiedRecord) -> bool:
-        haystacks = [record.customer_name or "", record.service or ""]
-        return any(search_term in value.lower() for value in haystacks) if search_term else True
-
-    filtered_records = [
-        (index, record)
-        for index, record in enumerate(records)
-        if (not selected_sources or record.source in selected_sources)
-        and (not selected_statuses or record.status in selected_statuses)
-        and _matches_search(record)
-    ]
-
-    st.write("Records ready for review:")
-    if filtered_records:
-        st.markdown("<div class='section-title'>Queue preview</div>", unsafe_allow_html=True)
-        table_rows = records_to_template_rows(record for _, record in filtered_records)
-        st.dataframe(table_rows, use_container_width=True, height=320)
-    else:
-        st.info("No records match the current filters.")
-
-    st.subheader("Alerts")
-    alerts = []
-    for record in records:
-        issues = _detected_issues(record)
-        if issues or record.status in {"needs_review", "rejected"}:
-            alerts.append((record, issues))
-
-    if alerts:
-        for alert, issues in alerts:
-            with st.container():
-                st.markdown(
-                    f"<div class='alert-card'><strong>{alert.source_name}</strong> — {alert.status.upper()}</div>",
-                    unsafe_allow_html=True,
-                )
-                for issue in issues or ["Awaiting human decision"]:
-                    st.warning(issue)
-    else:
-        st.success("No alerts found for the current selection.")
-
-    if not filtered_records:
-        st.session_state.pop("selected_row", None)
+    if not records:
+        st.info("No records are available for review. Data ingestion runs automatically.")
         return
 
-    max_index = max(len(filtered_records) - 1, 0)
-    selected_row = int(st.session_state.get("selected_row", 0))
-    selected_row = min(selected_row, max_index)
+    with st.container():
+        _summary_panel(records)
+        st.markdown("<div class='section-title'>All records</div>", unsafe_allow_html=True)
+        _record_table(records)
 
-    nav_prev, nav_label, nav_next, nav_jump = st.columns([1, 2, 1, 1])
+    st.markdown("<div class='section-title'>Validation for current record</div>", unsafe_allow_html=True)
+
+    max_index = len(records) - 1
+    selected_row = int(st.session_state.get("selected_row", 0))
+    selected_row = min(max(selected_row, 0), max_index)
+
+    nav_prev, nav_label, nav_next, nav_skip = st.columns([1, 2, 1, 1])
     with nav_prev:
         if st.button("⬅️ Previous", disabled=selected_row <= 0, type="secondary"):
             selected_row = _step_selected_row(-1, max_index)
     with nav_label:
-        st.markdown(
-            f"**Select row to review**  "
-            f"Row {selected_row + 1} of {max_index + 1} (filtered view)",
-        )
+        st.markdown(f"**Row {selected_row + 1} of {max_index + 1}**")
     with nav_next:
         if st.button("Next ➡️", disabled=selected_row >= max_index, type="primary"):
             selected_row = _step_selected_row(1, max_index)
-    with nav_jump:
+    with nav_skip:
         if st.button("Skip to issue", type="secondary"):
-            ahead = [
-                idx for idx, (_, rec) in enumerate(filtered_records)
-                if rec.status == "needs_review" and idx > selected_row
-            ]
+            ahead = [idx for idx, rec in enumerate(records) if _detected_issues(rec) and idx > selected_row]
             target = ahead[0] if ahead else selected_row
             selected_row = _step_selected_row(target - selected_row, max_index)
 
-    def _sync_row_input() -> None:
-        st.session_state["selected_row"] = int(st.session_state["selected_row_input"])
-
-    selected = st.number_input(
-        "Manual row selection",
-        min_value=0,
-        max_value=max_index,
-        step=1,
-        value=selected_row,
-        format="%d",
-        key="selected_row_input",
-        on_change=_sync_row_input,
-    )
-
-    selected_row = int(st.session_state.get("selected_row", selected))
     st.session_state["selected_row"] = selected_row
-    record_index, record = filtered_records[selected_row]
+    record = records[selected_row]
 
-    st.markdown(f"**Source:** {record.source} — {record.source_name}")
-    st.caption(f"Current status: {record.status} | Notes: {record.notes or 'No reviewer notes yet.'}")
+    issue_list = _detected_issues(record)
+    if issue_list:
+        for issue in issue_list:
+            st.warning(issue)
+    else:
+        st.success("No validation issues for this record.")
 
-    st.subheader("Record at a glance")
-    quality_score = getattr(record, "quality_score", None)
-    summary_cols = st.columns([1, 1, 1, 1])
-    summary_cols[0].metric("Priority", record.priority or "Pending")
-    summary_cols[1].metric("Service", record.service or "Not captured")
-    summary_cols[2].metric("Channel", record.source.upper())
-    summary_cols[3].metric("Confidence", quality_score or "n/a")
+    st.markdown("<div class='section-title'>Record details</div>", unsafe_allow_html=True)
+    with st.container():
+        _selected_record_details(record)
 
-    detail_cols = st.columns([1.2, 1])
-    with detail_cols[0]:
-        st.markdown(
-            f"**Customer**: {record.customer_name or 'Unknown'}  \n"
-            f"**Contact**: {record.email or record.phone or 'Not captured'}  \n"
-            f"**Service**: {record.service or 'Not captured'}"
+    st.markdown("<div class='section-title'>Edit fields</div>", unsafe_allow_html=True)
+    with st.form("edit_form", clear_on_submit=False):
+        customer_name = st.text_input("Customer", value=record.customer_name or "")
+        email = st.text_input("Email", value=record.email or "")
+        phone = st.text_input("Phone", value=record.phone or "")
+        total_amount = st.number_input(
+            "Total Amount", value=record.total_amount or 0.0, step=0.01, format="%.2f"
         )
-    with detail_cols[1]:
-        st.markdown(
-            f"**Amounts**  \n"
-            f"• Net: {record.net_amount or 'n/a'}  \n"
-            f"• VAT: {record.vat_amount or 'n/a'}  \n"
-            f"• Total: {record.total_amount or 'n/a'}"
-        )
-        if record.notes:
-            st.markdown(f"**Existing notes**: {record.notes}")
+        notes = st.text_area("Notes", value=record.notes or "")
+        save_edits = st.form_submit_button("Save changes", type="primary")
 
-    with st.expander("Quality & readiness", expanded=True):
-        if record.status == "needs_review":
-            st.warning(
-                "This record was flagged during automated checks. Prioritize reviewing the highlighted fields before exporting."
-            )
-        else:
-            st.info("Automated checks passed; confirm the values below before approving.")
-        st.markdown(
-            "- **Customer:** "
-            f"{record.customer_name or 'Unknown'}  \n"
-            f"- **Contact:** {record.email or record.phone or 'Not captured'}  \n"
-            f"- **Amounts:** Net {record.net_amount or 'n/a'}, VAT {record.vat_amount or 'n/a'}, Total {record.total_amount or 'n/a'}"
-        )
+    def _current_edits(base: UnifiedRecord) -> UnifiedRecord:
+        updates = {
+            "customer_name": customer_name or None,
+            "email": email or None,
+            "phone": phone or None,
+            "total_amount": float(total_amount) if total_amount else None,
+            "notes": notes or None,
+        }
+        return apply_edits(base, updates)
 
-    edited = _edit_controls(record)
-
-    renderers = {
-        "success": st.success,
-        "warning": st.warning,
-        "info": st.info,
-        "error": st.error,
-    }
-
-    def _commit_action(index: int, updated: UnifiedRecord, message: str, level: str) -> None:
-        """Persist record updates, sync to disk, trigger exports, and log a toast."""
-
-        _persist_record(index, updated)
-        rows = _save_records(st.session_state.records, output_path)
-        export_feedback = _export_sink(
-            st.session_state.records,
-            rows,
-            sink=sink,
-            output_path=output_path,
-            excel_path=excel_path,
-            spreadsheet_id=spreadsheet_id.strip(),
-            worksheet_title=worksheet_title.strip(),
-            service_account_path=service_account_path,
-            auto_config=auto_sheets_config,
-        )
-        combined_message, combined_level = _combined_feedback(message, level, export_feedback)
-        st.session_state["last_action"] = {"message": combined_message, "level": combined_level}
-        renderers.get(combined_level, st.info)(combined_message)
+    if save_edits:
+        updated = _current_edits(record)
+        _persist_record(selected_row, updated)
+        _save_records(st.session_state.records, output_path)
+        st.success("Edits saved for this record.")
+        record = updated
 
     st.markdown("<div class='section-title'>Human-in-the-loop controls</div>", unsafe_allow_html=True)
-    action_cols = st.columns(4)
+    action_cols = st.columns(3)
     with action_cols[0]:
         if st.button("Approve", type="primary"):
-            updated = mark_status(edited, "approved")
-            message = f"Record '{record.source_name}' approved. Notes: {edited.notes or 'No quality issues noted.'}"
-            _commit_action(record_index, updated, message, "success")
+            updated = mark_status(_current_edits(record), "approved")
+            _persist_record(selected_row, updated)
+            _save_records(st.session_state.records, output_path)
+            st.success(f"Record '{updated.source_name}' approved.")
     with action_cols[1]:
         if st.button("Reject", type="secondary"):
-            updated = mark_status(edited, "rejected", note="rejected by reviewer")
-            message = (
-                f"Record '{record.source_name}' rejected. "
-                f"Review notes: {edited.notes or 'no notes provided.'}"
-            )
-            _commit_action(record_index, updated, message, "warning")
+            updated = mark_status(_current_edits(record), "rejected", note="rejected by reviewer")
+            _persist_record(selected_row, updated)
+            _save_records(st.session_state.records, output_path)
+            st.warning(f"Record '{updated.source_name}' rejected.")
     with action_cols[2]:
-        if st.button("Needs review", type="secondary"):
-            updated = mark_status(edited, "needs_review", note="sent back for edits")
-            message = (
-                f"Record '{record.source_name}' flagged for follow-up. "
-                f"Quality findings: {edited.notes or 'none recorded.'}"
-            )
-            _commit_action(record_index, updated, message, "info")
-    with action_cols[3]:
-        if st.button("Cancel / reset", type="secondary"):
-            original = st.session_state.original_records[record_index]
-            _persist_record(record_index, original)
-            message = f"Edits for '{record.source_name}' were reverted to the original captured values."
-            st.session_state["last_action"] = {"message": message, "level": "info"}
-            st.info(message)
+        if st.button("Reset changes", type="secondary"):
+            original = st.session_state.original_records[selected_row]
+            _persist_record(selected_row, original)
+            st.info("Reverted to the original captured values.")
 
-    if st.button("Save"):
-        rows = _save_records(st.session_state.records, output_path)
-        export_feedback = _export_sink(
-            st.session_state.records,
-            rows,
-            sink=sink,
-            output_path=output_path,
-            excel_path=excel_path,
-            spreadsheet_id=spreadsheet_id.strip(),
-            worksheet_title=worksheet_title.strip(),
-            service_account_path=service_account_path,
-            auto_config=auto_sheets_config,
-        )
-        message = f"Saved {len(st.session_state.records)} records to {output_path}"
-        combined_message, combined_level = _combined_feedback(message, "success", export_feedback)
-        st.session_state["last_action"] = {"message": combined_message, "level": combined_level}
-        renderers.get(combined_level, st.info)(combined_message)
+    st.divider()
+    _issues_panel(records)
 
 
 if __name__ == "__main__":
