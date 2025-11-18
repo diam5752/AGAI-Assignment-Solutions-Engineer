@@ -14,6 +14,13 @@ from automation.cli import main as cli_main
 from automation.extractors import load_records
 
 
+@pytest.fixture(autouse=True)
+def disable_ai(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Disable remote LLM calls during tests to avoid token usage."""
+
+    monkeypatch.setenv("AI_ENRICHMENT_DISABLED", "1")
+
+
 @pytest.fixture
 def dummy_data_dir() -> Path:
     """Return the built-in dummy data directory for tests."""

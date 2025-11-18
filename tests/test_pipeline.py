@@ -88,3 +88,44 @@ def test_records_to_template_rows_converts_all_fields():
     assert rows[0]["Date"] == "2024-01-20"
     assert rows[1]["Date"] == "2024-01-21"
     assert rows[1]["Type"] == "INVOICE"
+
+
+def test_pipeline_output_aligns_with_template_examples(tmp_path: Path, dummy_data_dir: Path):
+    """Ensure exported rows stay close to the published template samples."""
+
+    output_path = tmp_path / "unified.csv"
+    run_pipeline(dummy_data_dir, output_path)
+
+    produced_rows = {
+        row["Source"]: row
+        for row in csv.DictReader(output_path.read_text(encoding="utf-8").splitlines())
+    }
+
+    template_path = dummy_data_dir / "templates" / "data_extraction_template.csv"
+    template_rows = {
+        row["Source"]: row
+        for row in csv.DictReader(template_path.read_text(encoding="utf-8").splitlines())
+    }
+
+    # Compare representative entries from each capture channel.
+    checks = {
+        "contact_form_1.html": ["Service_Interest", "Priority", "Message"],
+        "email_01.eml": ["Service_Interest", "Message"],
+        "invoice_TF-2024-001.html": ["Amount", "VAT", "Total_Amount", "Invoice_Number"],
+    }
+
+    for source, fields in checks.items():
+        assert source in produced_rows, f"Missing {source} in pipeline output"
+        assert source in template_rows, f"Missing {source} in template file"
+
+        for field in fields:
+            generated = produced_rows[source][field]
+            expected = template_rows[source][field]
+
+            if field == "Message":
+                assert generated.casefold().startswith(expected[:30].casefold()), f"Message drift for {source}"
+            elif field == "Service_Interest":
+                expected_token = expected.lower().split()[0]
+                assert expected_token in generated.lower(), f"Service should align with template for {source}"
+            else:
+                assert generated == expected, f"Mismatch in {field} for {source}"

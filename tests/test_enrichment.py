@@ -7,7 +7,7 @@ from automation.models import UnifiedRecord
 
 
 def test_enrich_records_heuristics(monkeypatch):
-    """Fallback heuristics should normalize service, priority, and summary."""
+    """Fallback heuristics should keep messages meaningful without LLM calls."""
 
     monkeypatch.setenv("AI_ENRICHMENT_DISABLED", "1")
     record = UnifiedRecord(
@@ -20,8 +20,9 @@ def test_enrich_records_heuristics(monkeypatch):
 
     enriched = enrich_records([record])[0]
 
-    assert enriched.priority == "high"
-    assert enriched.service == "CRM System"
+    assert enriched.priority is None
+    assert enriched.service is None
+    assert enriched.message.startswith("Είναι επείγον")
     assert len(enriched.message or "") <= 240
 
 
@@ -77,6 +78,69 @@ def test_enrichment_limits_message_to_single_sentence(monkeypatch):
     enriched = enrich_records([record])[0]
 
     assert enriched.message == "Χρειαζόμαστε ένα νέο e-commerce website"
+
+
+def test_llm_runs_only_for_uncertain_records(monkeypatch):
+    """LLM should be invoked when fields are missing or text is long."""
+
+    monkeypatch.setenv("AI_ENRICHMENT_DISABLED", "0")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+    calls: dict[str, int] = {"count": 0}
+
+    def fake_call(self, record):
+        calls["count"] += 1
+        return {
+            "priority": "medium",
+            "service_interest": "CRM System",
+            "message_summary": "Need a CRM with email automations",
+        }
+
+    monkeypatch.setattr(enrichment.LLMEnricher, "_call_model", fake_call)
+    enrichment._AI_ENV_LOADED = False
+
+    long_message = "Σκεφτόμαστε να οργανώσουμε καλύτερα τις πωλήσεις μας " * 30
+    record = UnifiedRecord(
+        source="email",
+        source_name="email_ai.eml",
+        service=None,
+        priority=None,
+        message=long_message,
+    )
+
+    enriched = enrich_records([record])[0]
+
+    assert calls["count"] == 1
+    assert enriched.priority == "medium"
+    assert enriched.service == "CRM System"
+    assert "CRM" in (enriched.message or "")
+
+
+def test_llm_skips_when_metadata_confident(monkeypatch):
+    """Confident records should rely on local normalization only."""
+
+    monkeypatch.setenv("AI_ENRICHMENT_DISABLED", "0")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+    def fail_call(self, record):  # pragma: no cover - guardrail
+        raise AssertionError("LLM should not run for confident records")
+
+    monkeypatch.setattr(enrichment.LLMEnricher, "_call_model", fail_call)
+    enrichment._AI_ENV_LOADED = False
+
+    record = UnifiedRecord(
+        source="email",
+        source_name="email_ok.eml",
+        service="CRM System",
+        priority="high",
+        message="Χρειαζόμαστε CRM με υποστήριξη ticketing.",
+    )
+
+    enriched = enrich_records([record])[0]
+
+    assert enriched.service == "CRM System"
+    assert enriched.priority == "high"
+    assert "ticketing" in (enriched.message or "")
 
 
 def test_invoice_records_skip_ai(monkeypatch):
