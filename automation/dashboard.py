@@ -1,4 +1,5 @@
 """Streamlit dashboard to review, edit, and approve extracted records."""
+import copy
 from pathlib import Path
 from typing import List
 
@@ -14,6 +15,7 @@ if __package__ in {None, ""}:
 from automation.models import UnifiedRecord
 from automation.pipeline import write_csv
 from automation.sinks import push_to_google_sheets, write_excel
+from automation.quality import validate_record
 from automation.review import apply_edits, load_review_records, mark_status
 from automation.templates import records_to_template_rows
 
@@ -22,7 +24,9 @@ def _load_session_records(data_dir: Path) -> List[UnifiedRecord]:
     """Load records once per session to keep the app responsive."""
 
     if "records" not in st.session_state:
-        st.session_state.records = load_review_records(data_dir)
+        loaded = load_review_records(data_dir)
+        st.session_state.records = loaded
+        st.session_state.original_records = copy.deepcopy(loaded)
     return st.session_state.records
 
 
@@ -163,6 +167,31 @@ def _status_counters(records: List[UnifiedRecord]) -> None:
         column.metric(label=status.replace("_", " ").title(), value=count)
 
 
+def _queue_dashboard(records: List[UnifiedRecord]) -> None:
+    """Render a real-time dashboard summarizing queue health and progress."""
+
+    total = len(records)
+    approved = len([record for record in records if record.status == "approved"])
+    needs_review = len([record for record in records if record.status == "needs_review"])
+    rejected = len([record for record in records if record.status == "rejected"])
+    ready_for_export = len([record for record in records if record.status == "auto_valid"])
+
+    top_cols = st.columns(4)
+    top_cols[0].metric("Total records", total)
+    top_cols[1].metric("Approved", approved)
+    top_cols[2].metric("Needs review", needs_review)
+    top_cols[3].metric("Rejected", rejected)
+
+    completion_ratio = approved / total if total else 0
+    st.progress(completion_ratio)
+    st.caption(f"{approved} of {total} ready for export")
+
+    badge_cols = st.columns(3)
+    badge_cols[0].metric("Ready to auto-export", ready_for_export)
+    badge_cols[1].metric("Pending manual checks", max(total - (approved + rejected), 0))
+    badge_cols[2].metric("Human-in-loop flags", needs_review)
+
+
 def _source_overview(records: List[UnifiedRecord]) -> None:
     """Surface how many records originate from each capture channel."""
 
@@ -175,6 +204,41 @@ def _source_overview(records: List[UnifiedRecord]) -> None:
 
     st.caption("Mix of sources (forms, emails, invoices) currently loaded")
     st.bar_chart(source_counts)
+
+
+def _detected_issues(record: UnifiedRecord) -> List[str]:
+    """Return validation findings to populate the alerts panel."""
+
+    findings = validate_record(record)
+    if record.notes and "quality" in record.notes.lower():
+        findings.append(record.notes)
+    return findings
+
+
+def _inject_theme() -> None:
+    """Increase contrast and spacing for better readability."""
+
+    st.markdown(
+        """
+        <style>
+            :root {
+                --primary-color: #0f766e;
+                --accent-color: #f97316;
+                --surface-color: #0f172a;
+                --card-color: #111827;
+                --text-strong: #f8fafc;
+            }
+            div[data-testid="stSidebar"] {background: var(--surface-color); color: var(--text-strong);} 
+            div[data-testid="stSidebar"] h1, div[data-testid="stSidebar"] h2, div[data-testid="stSidebar"] label {color: var(--text-strong);} 
+            .stButton>button {width: 100%; padding: 0.8rem; font-weight: 700; border-radius: 0.5rem;}
+            .stButton>button[data-baseweb="button"] {background: var(--primary-color); color: white; border: none;}
+            .dashboard-card {background: var(--card-color); padding: 1rem; border-radius: 0.75rem; border: 1px solid #1f2937;}
+            .alert-card {border-left: 6px solid var(--accent-color); padding: 0.75rem; background: rgba(249,115,22,0.08); border-radius: 0.6rem; margin-bottom: 0.5rem;}
+            .section-title {font-size: 1.05rem; font-weight: 700; color: var(--text-strong); margin-top: 0.5rem;}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def _step_selected_row(delta: int, max_index: int) -> int:
@@ -191,6 +255,7 @@ def main() -> None:
     """Launch a lightweight human-in-the-loop dashboard."""
 
     st.set_page_config(page_title="Review Console", layout="wide")
+    _inject_theme()
 
     st.title("Human Review for Extracted Records")
     st.caption(
@@ -263,6 +328,11 @@ def main() -> None:
 
     records = _load_session_records(data_dir)
 
+    st.subheader("Live dashboard")
+    with st.container():
+        _queue_dashboard(records)
+        _source_overview(records)
+
     st.subheader("Review progress snapshot")
     progress_cols = st.columns([2, 1])
     with progress_cols[0]:
@@ -275,8 +345,6 @@ def main() -> None:
             "- 🚧 **Needs review**: flagged by checks or reviewer\n"
             "- ❌ **Rejected**: excluded from exports"
         )
-    _source_overview(records)
-
     sources = sorted({record.source for record in records})
     statuses = sorted({record.status for record in records})
     selected_sources = st.sidebar.multiselect("Filter by source", sources, default=sources)
@@ -297,26 +365,28 @@ def main() -> None:
 
     st.write("Records ready for review:")
     if filtered_records:
+        st.markdown("<div class='section-title'>Queue preview</div>", unsafe_allow_html=True)
         table_rows = records_to_template_rows(record for _, record in filtered_records)
-        st.dataframe(table_rows, use_container_width=True, height=280)
+        st.dataframe(table_rows, use_container_width=True, height=320)
     else:
         st.info("No records match the current filters.")
 
     st.subheader("Alerts")
-    alerts = [
-        record
-        for record in records
-        if record.status == "needs_review" or (record.notes and "quality" in record.notes.lower())
-    ]
+    alerts = []
+    for record in records:
+        issues = _detected_issues(record)
+        if issues or record.status in {"needs_review", "rejected"}:
+            alerts.append((record, issues))
+
     if alerts:
-        for alert in alerts:
-            alert_message = f"{alert.source_name} — status: {alert.status}"
-            if alert.notes:
-                alert_message = f"{alert_message} — notes: {alert.notes}"
-            if alert.status == "needs_review":
-                st.warning(alert_message)
-            else:
-                st.info(alert_message)
+        for alert, issues in alerts:
+            with st.container():
+                st.markdown(
+                    f"<div class='alert-card'><strong>{alert.source_name}</strong> — {alert.status.upper()}</div>",
+                    unsafe_allow_html=True,
+                )
+                for issue in issues or ["Awaiting human decision"]:
+                    st.warning(issue)
     else:
         st.success("No alerts found for the current selection.")
 
@@ -330,18 +400,18 @@ def main() -> None:
 
     nav_prev, nav_label, nav_next, nav_jump = st.columns([1, 2, 1, 1])
     with nav_prev:
-        if st.button("⬅️ Previous", disabled=selected_row <= 0):
+        if st.button("⬅️ Previous", disabled=selected_row <= 0, type="secondary"):
             selected_row = _step_selected_row(-1, max_index)
     with nav_label:
         st.markdown(
-            f"**Select row to review**  "+
+            f"**Select row to review**  "
             f"Row {selected_row + 1} of {max_index + 1} (filtered view)",
         )
     with nav_next:
-        if st.button("Next ➡️", disabled=selected_row >= max_index):
+        if st.button("Next ➡️", disabled=selected_row >= max_index, type="primary"):
             selected_row = _step_selected_row(1, max_index)
     with nav_jump:
-        if st.button("Skip to issue"):
+        if st.button("Skip to issue", type="secondary"):
             ahead = [
                 idx for idx, (_, rec) in enumerate(filtered_records)
                 if rec.status == "needs_review" and idx > selected_row
@@ -437,28 +507,36 @@ def main() -> None:
         st.session_state["last_action"] = {"message": combined_message, "level": combined_level}
         renderers.get(combined_level, st.info)(combined_message)
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button("Approve"):
+    st.markdown("<div class='section-title'>Human-in-the-loop controls</div>", unsafe_allow_html=True)
+    action_cols = st.columns(4)
+    with action_cols[0]:
+        if st.button("Approve", type="primary"):
             updated = mark_status(edited, "approved")
             message = f"Record '{record.source_name}' approved. Notes: {edited.notes or 'No quality issues noted.'}"
             _commit_action(record_index, updated, message, "success")
-    with col2:
-        if st.button("Reject"):
+    with action_cols[1]:
+        if st.button("Reject", type="secondary"):
             updated = mark_status(edited, "rejected", note="rejected by reviewer")
             message = (
                 f"Record '{record.source_name}' rejected. "
                 f"Review notes: {edited.notes or 'no notes provided.'}"
             )
             _commit_action(record_index, updated, message, "warning")
-    with col3:
-        if st.button("Mark needs review"):
+    with action_cols[2]:
+        if st.button("Needs review", type="secondary"):
             updated = mark_status(edited, "needs_review", note="sent back for edits")
             message = (
                 f"Record '{record.source_name}' flagged for follow-up. "
                 f"Quality findings: {edited.notes or 'none recorded.'}"
             )
             _commit_action(record_index, updated, message, "info")
+    with action_cols[3]:
+        if st.button("Cancel / reset", type="secondary"):
+            original = st.session_state.original_records[record_index]
+            _persist_record(record_index, original)
+            message = f"Edits for '{record.source_name}' were reverted to the original captured values."
+            st.session_state["last_action"] = {"message": message, "level": "info"}
+            st.info(message)
 
     if st.button("Save"):
         rows = _save_records(st.session_state.records, output_path)
