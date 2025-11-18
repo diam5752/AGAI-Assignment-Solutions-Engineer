@@ -87,6 +87,64 @@ def test_parse_email_without_headers(tmp_path):
     assert record.company == "Headerless Co"
 
 
+def test_parse_email_html_only_body(tmp_path):
+    """HTML-only emails should still yield contact and message content."""
+
+    message = EmailMessage()
+    message["From"] = "HTML Sender <html.sender@example.com>"
+    message["Subject"] = "HTML Inquiry"
+    message.add_alternative(
+        """
+        <html><body>
+        <p>- Όνομα: HTML Name</p>
+        <p>- Email: html@contact.gr</p>
+        <p>- Τηλέφωνο: +30 210 5555555</p>
+        <p>- Εταιρεία: HTML Co</p>
+        <p>Θέλω πληροφορίες για custom εφαρμογή.</p>
+        </body></html>
+        """,
+        subtype="html",
+    )
+
+    eml_path = tmp_path / "html_only.eml"
+    eml_path.write_bytes(message.as_bytes())
+
+    record = parse_email(eml_path)
+
+    assert record.customer_name == "HTML Name"
+    assert record.email == "html@contact.gr"
+    assert record.phone == "+302105555555"
+    assert "custom εφαρμογή" in (record.message or "")
+
+
+def test_parse_invoice_european_decimal_format(tmp_path):
+    """Invoices with comma decimals should still parse numeric totals correctly."""
+
+    html_invoice = """
+    <html><body>
+    <div><strong>Αριθμός:</strong> INV-002<br>
+    <strong>Ημερομηνία:</strong> 02/02/2024<br></div>
+    <div><strong>Πελάτης:</strong> Δοκιμαστική Εταιρεία</div>
+    <table>
+      <tr><td>Καθαρή Αξία:</td><td>€1.234,00</td></tr>
+      <tr><td>ΦΠΑ 24%:</td><td>€296,16</td></tr>
+      <tr><td>ΣΥΝΟΛΟ:</td><td>€1.530,16</td></tr>
+    </table>
+    </body></html>
+    """
+
+    invoice_path = tmp_path / "invoice_comma.html"
+    invoice_path.write_text(html_invoice, encoding="utf-8")
+
+    record = parse_invoice(invoice_path)
+
+    assert record.invoice_number == "INV-002"
+    assert record.customer_name == "Δοκιμαστική Εταιρεία"
+    assert record.net_amount == 1234.00
+    assert record.vat_amount == 296.16
+    assert record.total_amount == 1530.16
+
+
 def test_load_records_counts_all_assets():
     """Loading records should cover all files across dummy folders."""
 
