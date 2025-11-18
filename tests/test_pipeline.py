@@ -6,6 +6,8 @@ import pytest
 
 from automation.extractors import load_records
 from automation.pipeline import run_pipeline
+from automation.templates import TEMPLATE_HEADERS, records_to_template_rows
+from automation.models import UnifiedRecord
 
 
 def test_run_pipeline_writes_csv_with_headers_and_status(tmp_path: Path, dummy_data_dir: Path):
@@ -16,9 +18,9 @@ def test_run_pipeline_writes_csv_with_headers_and_status(tmp_path: Path, dummy_d
     assert output_path.exists()
     rows = list(csv.DictReader(output_path.read_text(encoding="utf-8").splitlines()))
     assert len(rows) == len(load_records(dummy_data_dir))
-    assert "status" in rows[0]
-    statuses = {row["status"] for row in rows}
-    assert statuses.issubset({"auto_valid", "needs_review"})
+    assert list(rows[0].keys()) == TEMPLATE_HEADERS
+    assert rows[0]["Type"] in {"FORM", "EMAIL", "INVOICE"}
+    assert rows[0]["Date"]
 
 
 def test_run_pipeline_errors_when_no_records(tmp_path: Path) -> None:
@@ -29,3 +31,46 @@ def test_run_pipeline_errors_when_no_records(tmp_path: Path) -> None:
         run_pipeline(missing_data_dir, output_path)
 
     assert not output_path.exists()
+
+
+def test_records_to_template_rows_converts_all_fields():
+    record = UnifiedRecord(
+        source="email",
+        source_name="sample.eml",
+        customer_name="  Demo   User ",
+        email="demo@example.com",
+        phone="+30 210 0000000",
+        company=" Demo Co ",
+        service="CRM Upgrade\nand support",
+        message="Line one\nLine two",
+        priority="high",
+        submission_date="2024-01-20T12:30:00",
+        invoice_number="INV-01",
+        net_amount=123.4,
+        vat_amount=12.34,
+        total_amount=135.74,
+    )
+
+    invoice_record = UnifiedRecord(
+        source="invoice",
+        source_name="invoice.html",
+        customer_name="Invoice Client",
+        invoice_date="21/01/2024",
+        invoice_number="INV-02",
+    )
+
+    rows = records_to_template_rows([record, invoice_record])
+
+    assert list(rows[0].keys()) == TEMPLATE_HEADERS
+    assert rows[0]["Type"] == "EMAIL"
+    assert rows[0]["Source"] == "sample.eml"
+    assert rows[0]["Client_Name"] == "Demo User"
+    assert rows[0]["Company"] == "Demo Co"
+    assert rows[0]["Service_Interest"] == "CRM Upgrade and support"
+    assert rows[0]["Amount"] == "123.40"
+    assert rows[0]["VAT"] == "12.34"
+    assert rows[0]["Total_Amount"] == "135.74"
+    assert rows[0]["Message"] == "Line one Line two"
+    assert rows[0]["Date"] == "2024-01-20"
+    assert rows[1]["Date"] == "2024-01-21"
+    assert rows[1]["Type"] == "INVOICE"

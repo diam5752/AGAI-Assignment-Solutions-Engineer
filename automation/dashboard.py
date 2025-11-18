@@ -14,12 +14,8 @@ if __package__ in {None, ""}:
 from automation.models import UnifiedRecord
 from automation.pipeline import write_csv
 from automation.sinks import push_to_google_sheets, write_excel
-from automation.review import (
-    apply_edits,
-    load_review_records,
-    mark_status,
-    records_to_rows,
-)
+from automation.review import apply_edits, load_review_records, mark_status
+from automation.templates import records_to_template_rows
 
 
 def _load_session_records(data_dir: Path) -> List[UnifiedRecord]:
@@ -37,15 +33,16 @@ def _persist_record(index: int, new_record: UnifiedRecord) -> None:
 
 
 def _save_records(records: List[UnifiedRecord], output_path: Path) -> List[dict]:
-    """Write the in-memory records to disk and return serialized rows."""
+    """Write the in-memory records to disk and return template-aligned rows."""
 
-    rows = records_to_rows(records)
-    write_csv(rows, output_path)
-    return rows
+    template_rows = records_to_template_rows(records)
+    write_csv(template_rows, output_path)
+    return template_rows
 
 
 def _export_sink(
-    rows: List[dict],
+    records: List[UnifiedRecord],
+    template_rows: List[dict],
     sink: str,
     output_path: Path,
     excel_path: Path | None,
@@ -61,7 +58,7 @@ def _export_sink(
     if sink == "excel":
         target = excel_path or output_path.with_suffix(".xlsx")
         try:
-            write_excel(rows, target)
+            write_excel(template_rows, target)
             return f"Excel export saved to {target}", "success"
         except Exception as exc:  # pragma: no cover - defensive UI feedback
             return f"Excel export failed: {exc}", "error"
@@ -78,7 +75,9 @@ def _export_sink(
                 "warning",
             )
 
-        approved_rows = [row for row in rows if row.get("status") == "approved"]
+        approved_rows = [
+            template_rows[index] for index, record in enumerate(records) if record.status == "approved"
+        ]
         if not approved_rows:
             return ("No approved records to push to Google Sheets yet.", "info")
         try:
@@ -267,7 +266,8 @@ def main() -> None:
 
     st.write("Records ready for review:")
     if filtered_records:
-        st.dataframe(records_to_rows(record for _, record in filtered_records))
+        table_rows = records_to_template_rows(record for _, record in filtered_records)
+        st.dataframe(table_rows)
     else:
         st.info("No records match the current filters.")
 
@@ -367,6 +367,7 @@ def main() -> None:
         _persist_record(index, updated)
         rows = _save_records(st.session_state.records, output_path)
         export_feedback = _export_sink(
+            st.session_state.records,
             rows,
             sink=sink,
             output_path=output_path,
@@ -405,6 +406,7 @@ def main() -> None:
     if st.button("Save"):
         rows = _save_records(st.session_state.records, output_path)
         export_feedback = _export_sink(
+            st.session_state.records,
             rows,
             sink=sink,
             output_path=output_path,

@@ -24,6 +24,9 @@ def test_parse_invoice_amounts():
     assert record.invoice_number == "TF-2024-001"
     assert record.total_amount == 1054.00
     assert record.vat_amount == 204.00
+    assert record.company == "TechFlow Solutions"
+    assert record.email == "info@techflow-solutions.gr"
+    assert record.phone == "2101234567"
 
 
 def test_parse_email_structured_contact_details():
@@ -115,6 +118,16 @@ def test_parse_email_html_only_body(tmp_path):
     assert record.email == "html@contact.gr"
     assert record.phone == "+302105555555"
     assert "custom εφαρμογή" in (record.message or "")
+
+
+def test_parse_email_invoice_summary_extracts_supplier():
+    """Invoice summary emails should capture supplier details without fake phones."""
+
+    email_path = DATA_DIR / "emails" / "email_03.eml"
+    record = parse_email(email_path)
+
+    assert record.company == "Office Solutions Ltd"
+    assert record.phone is None
 
 
 def test_parse_invoice_european_decimal_format(tmp_path):

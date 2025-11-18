@@ -8,6 +8,7 @@ from automation.extractors import load_records
 from automation.models import UnifiedRecord
 from automation.quality import apply_quality_checks
 from automation.sinks import push_to_google_sheets, write_excel
+from automation.templates import TEMPLATE_HEADERS, records_to_template_rows
 
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ def write_csv(rows: Iterable[Dict[str, Any]], output_path: Path) -> None:
         return
 
     with output_path.open("w", newline="", encoding="utf-8") as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=rows[0].keys())
+        writer = csv.DictWriter(csvfile, fieldnames=TEMPLATE_HEADERS)
         writer.writeheader()
         writer.writerows(rows)
 
@@ -56,7 +57,7 @@ def run_pipeline(
     logger.info("Loaded %d raw records", len(raw_records))
     records = apply_quality_checks(raw_records)
     logger.info("Annotated %d records with quality statuses", len(records))
-    rows = [record.to_dict() for record in records]
+    rows = records_to_template_rows(records)
     write_csv(rows, output_path)
     logger.info("Wrote CSV output to %s", output_path)
 
