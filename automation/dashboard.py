@@ -148,6 +148,46 @@ def _edit_controls(record: UnifiedRecord) -> UnifiedRecord:
     return apply_edits(record, updates)
 
 
+def _status_counters(records: List[UnifiedRecord]) -> None:
+    """Summarize review progress so reviewers see real-time queue health."""
+
+    if not records:
+        return
+
+    status_counts: dict[str, int] = {}
+    for record in records:
+        status_counts[record.status] = status_counts.get(record.status, 0) + 1
+
+    top_statuses = sorted(status_counts.items(), key=lambda item: item[0])
+    columns = st.columns(len(top_statuses))
+    for column, (status, count) in zip(columns, top_statuses):
+        column.metric(label=status.replace("_", " ").title(), value=count)
+
+
+def _source_overview(records: List[UnifiedRecord]) -> None:
+    """Surface how many records originate from each capture channel."""
+
+    if not records:
+        return
+
+    source_counts: dict[str, int] = {}
+    for record in records:
+        source_counts[record.source] = source_counts.get(record.source, 0) + 1
+
+    st.caption("Mix of sources (forms, emails, invoices) currently loaded")
+    st.bar_chart(source_counts)
+
+
+def _step_selected_row(delta: int, max_index: int) -> int:
+    """Adjust the selected row index with bounds checking for navigation buttons."""
+
+    current = int(st.session_state.get("selected_row", 0))
+    updated = min(max(current + delta, 0), max_index)
+    st.session_state["selected_row"] = updated
+    st.session_state["selected_row_input"] = updated
+    return updated
+
+
 def main() -> None:
     """Launch a lightweight human-in-the-loop dashboard."""
 
@@ -191,12 +231,21 @@ def main() -> None:
                 "Enter a Spreadsheet ID, worksheet title, and a service account JSON file to enable sync."
             )
 
+    st.sidebar.info(
+        "Workflow: filter by source/status, navigate records with the arrows, edit fields, and approve/reject. "
+        "Approved rows will always be written to CSV and optionally to Excel or Sheets as configured."
+    )
+
     if st.sidebar.button("Reload data"):
         st.session_state.pop("records", None)
         st.session_state.pop("selected_row", None)
         _rerun_app()
 
     records = _load_session_records(data_dir)
+
+    st.subheader("Review progress snapshot")
+    _status_counters(records)
+    _source_overview(records)
 
     sources = sorted({record.source for record in records})
     statuses = sorted({record.status for record in records})
@@ -245,22 +294,64 @@ def main() -> None:
         return
 
     max_index = max(len(filtered_records) - 1, 0)
-    selected_row = st.session_state.get("selected_row", 0)
+    selected_row = int(st.session_state.get("selected_row", 0))
     selected_row = min(selected_row, max_index)
+
+    nav_prev, nav_label, nav_next, nav_jump = st.columns([1, 2, 1, 1])
+    with nav_prev:
+        if st.button("⬅️ Previous", disabled=selected_row <= 0):
+            selected_row = _step_selected_row(-1, max_index)
+    with nav_label:
+        st.markdown(
+            f"**Select row to review**  "+
+            f"Row {selected_row + 1} of {max_index + 1} (filtered view)",
+        )
+    with nav_next:
+        if st.button("Next ➡️", disabled=selected_row >= max_index):
+            selected_row = _step_selected_row(1, max_index)
+    with nav_jump:
+        if st.button("Skip to issue"):
+            ahead = [
+                idx for idx, (_, rec) in enumerate(filtered_records)
+                if rec.status == "needs_review" and idx > selected_row
+            ]
+            target = ahead[0] if ahead else selected_row
+            selected_row = _step_selected_row(target - selected_row, max_index)
+
+    def _sync_row_input() -> None:
+        st.session_state["selected_row"] = int(st.session_state["selected_row_input"])
+
     selected = st.number_input(
-        "Select row to review",
+        "Manual row selection",
         min_value=0,
         max_value=max_index,
         step=1,
         value=selected_row,
         format="%d",
+        key="selected_row_input",
+        on_change=_sync_row_input,
     )
-    selected = int(selected)
-    st.session_state["selected_row"] = selected
-    record_index, record = filtered_records[selected]
+
+    selected_row = int(st.session_state.get("selected_row", selected))
+    st.session_state["selected_row"] = selected_row
+    record_index, record = filtered_records[selected_row]
 
     st.markdown(f"**Source:** {record.source} — {record.source_name}")
     st.caption(f"Current status: {record.status} | Notes: {record.notes or 'No reviewer notes yet.'}")
+    with st.expander("Quality & readiness", expanded=True):
+        if record.status == "needs_review":
+            st.warning(
+                "This record was flagged during automated checks. Prioritize reviewing the highlighted fields before exporting."
+            )
+        else:
+            st.info("Automated checks passed; confirm the values below before approving.")
+        st.markdown(
+            "- **Customer:** "
+            f"{record.customer_name or 'Unknown'}  \n"
+            f"- **Contact:** {record.email or record.phone or 'Not captured'}  \n"
+            f"- **Amounts:** Net {record.net_amount or 'n/a'}, VAT {record.vat_amount or 'n/a'}, Total {record.total_amount or 'n/a'}"
+        )
+
     edited = _edit_controls(record)
 
     renderers = {
