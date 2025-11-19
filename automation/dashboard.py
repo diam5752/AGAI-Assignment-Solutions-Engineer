@@ -129,10 +129,11 @@ def _rerun_app() -> None:
     rerun()
 
 
-def _edit_controls(record: UnifiedRecord, editor_key: str) -> UnifiedRecord:
-    """Render inline editable fields and return the updated record."""
+def _edit_controls(record: UnifiedRecord, editor_key: str, row_id: int, source_label: str) -> UnifiedRecord:
+    """Render inline editable fields, surface the record ID, and return the updated record."""
 
     st.subheader("Edit fields (double-click to update)")
+    st.caption(source_label)
     editable_fields = {
         "Customer": "customer_name",
         "Email": "email",
@@ -148,17 +149,23 @@ def _edit_controls(record: UnifiedRecord, editor_key: str) -> UnifiedRecord:
         "Notes": record.notes or "",
     }
 
+    row_with_id = {"Row ID": row_id}
+    row_with_id.update(row)
+
     edited_rows = st.data_editor(
-        [row],
+        [row_with_id],
         hide_index=True,
         num_rows="fixed",
         use_container_width=True,
         key=f"editor_{editor_key}",
         column_config={
-            "Total Amount": st.column_config.NumberColumn("Total Amount", format="%.2f")
+            "Row ID": st.column_config.NumberColumn("Row ID"),
+            "Total Amount": st.column_config.NumberColumn("Total Amount", format="%.2f"),
         },
+        column_order=["Row ID", *editable_fields.keys()],
+        disabled=["Row ID"],
     )
-    edited_row = edited_rows[0] if edited_rows else row
+    edited_row = edited_rows[0] if edited_rows else row_with_id
 
     updates = {}
     for label, field in editable_fields.items():
@@ -407,49 +414,40 @@ def main() -> None:
                 max_index = len(filtered_records) - 1
                 selected_row = min(int(st.session_state.get("selected_row", 0)), max_index)
                 st.session_state["selected_row"] = selected_row
+
                 def _advance_row(delta: int = 1) -> None:
                     """Move the selection forward/backward before rerendering."""
 
                     next_index = min(max(st.session_state["selected_row"] + delta, 0), max_index)
                     st.session_state["selected_row"] = next_index
 
-                nav_cols = st.columns([1, 2, 1])
-                with nav_cols[0]:
-                    st.markdown("### ")
-                    if st.button("⬅️", disabled=selected_row <= 0, type="secondary", help="Previous record"):
-                        _advance_row(-1)
-                        selected_row = st.session_state["selected_row"]
-                with nav_cols[1]:
-                    st.markdown(
-                        f"**Select row to review**  "
-                        f"Row {selected_row + 1} of {max_index + 1} (filtered view)",
-                    )
-                with nav_cols[2]:
-                    st.markdown("### ")
-                    if st.button("➡️", disabled=selected_row >= max_index, type="secondary", help="Next record"):
-                        _advance_row(1)
-                        selected_row = st.session_state["selected_row"]
-
-                selected_display = st.number_input(
-                    "Manual row selection",
-                    min_value=1,
-                    max_value=max_index + 1,
-                    step=1,
-                    format="%d",
-                    value=selected_row + 1,
-                )
-
-                if selected_display - 1 != selected_row:
-                    st.session_state["selected_row"] = int(selected_display - 1)
-                    selected_row = st.session_state["selected_row"]
-                st.session_state["selected_row"] = selected_row
                 record_index, record = filtered_records[selected_row]
-
-                st.markdown(f"**Source:** {record.source} — {record.source_name}")
                 st.caption(f"Current status: {record.status} | Notes: {record.notes or 'No reviewer notes yet.'}")
 
+                row_id = selected_row + 1
                 editor_key = f"{record_index}_{record.source_name}"
-                edited = _edit_controls(record, editor_key)
+                edited = _edit_controls(
+                    record,
+                    editor_key,
+                    row_id=row_id,
+                    source_label=f"Source: {record.source} — {record.source_name}",
+                )
+
+                nav_cols = st.columns([1, 2, 1])
+                with nav_cols[0]:
+                    if st.button("⬅️", disabled=selected_row <= 0, type="secondary", help="Previous record"):
+                        _advance_row(-1)
+                        _rerun_app()
+                with nav_cols[1]:
+                    st.markdown(
+                        f"<p style='text-align:center; font-weight:600;'>Select row to review<br />"
+                        f"Row {row_id} of {max_index + 1} (filtered view)</p>",
+                        unsafe_allow_html=True,
+                    )
+                with nav_cols[2]:
+                    if st.button("➡️", disabled=selected_row >= max_index, type="secondary", help="Next record"):
+                        _advance_row(1)
+                        _rerun_app()
 
                 def _commit_action(index: int, updated: UnifiedRecord, message: str, level: str, renderer_col) -> None:
                     """Persist record updates, sync to disk, and render feedback next to the button."""
@@ -468,7 +466,7 @@ def main() -> None:
 
                 action_cols = st.columns(3)
                 with action_cols[0]:
-                    if st.button("👍 Approve", type="primary"):
+                    if st.button("👍 Approve", type="secondary"):
                         updated = mark_status(edited, "approved")
                         message = f"Record '{record.source_name}' approved."
                         _advance_row(1)
