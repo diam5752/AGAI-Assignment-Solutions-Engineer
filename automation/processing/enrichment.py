@@ -177,22 +177,101 @@ class LLMEnricher:
     def enrich(self, record: UnifiedRecord) -> UnifiedRecord:
         """Return a new record with summarized fields."""
 
-        if self.disabled:
-            return self._apply_updates(record, self._fallback(record))
+        # Handle two-stage phone extraction for emails
+        enriched_record = record
+        if self._is_email_missing_phone(record):
+            if not self.disabled and self.session:
+                # Stage 2: Attempt AI-based phone extraction
+                phone = self._extract_phone_with_ai(record)
+                if phone:
+                    enriched_record = replace(record, phone=phone)
+                else:
+                    # Both stages failed - mark for review
+                    enriched_record = replace(
+                        record,
+                        status="needs_review",
+                        notes=f"{record.notes or ''} | Phone number could not be extracted (basic + AI)".strip()
+                    )
+            else:
+                # AI disabled and no phone found - mark for review
+                enriched_record = replace(
+                    record,
+                    status="needs_review",
+                    notes=f"{record.notes or ''} | Phone number missing".strip()
+                )
 
-        needs_ai = self._needs_ai(record)
+        # Continue with regular enrichment
+        if self.disabled:
+            return self._apply_updates(enriched_record, self._fallback(enriched_record))
+
+        needs_ai = self._needs_ai(enriched_record)
         if needs_ai and self.session:
-            cache_key = self._fingerprint(record)
+            cache_key = self._fingerprint(enriched_record)
             if cache_key in self._cache:
                 response = self._cache[cache_key]
             else:
-                response = self._call_model(record)
+                response = self._call_model(enriched_record)
                 if response:
                     self._cache[cache_key] = response
             if response:
-                return self._apply_updates(record, response)
+                return self._apply_updates(enriched_record, response)
 
-        return self._apply_updates(record, self._fallback(record))
+        return self._apply_updates(enriched_record, self._fallback(enriched_record))
+
+    def _is_email_missing_phone(self, record: UnifiedRecord) -> bool:
+        """Check if this is an email record without a phone number."""
+        return (record.source or "").lower() == "email" and not record.phone
+
+    def _extract_phone_with_ai(self, record: UnifiedRecord) -> Optional[str]:
+        """Attempt to extract phone number using AI for emails that lack one."""
+        if not record.message:
+            return None
+
+        prompt = json.dumps(
+            {
+                "task": "extract_phone",
+                "content": (record.message or "")[:1200],
+            },
+            ensure_ascii=False,
+        )
+
+        payload = {
+            "model": self.model,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "You extract phone numbers from text. Respond ONLY with a JSON object containing "
+                        "'phone' field. If no phone number is found, return {\"phone\": null}. "
+                        "Phone numbers may be in various formats (e.g., +30 123 456 7890, 123-456-7890, etc.). "
+                        "Extract and normalize them without spaces or dashes."
+                    ),
+                },
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": 0.1,
+            "max_tokens": 50,
+        }
+
+        try:
+            response = self.session.post(
+                f"{self.base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
+                json=payload,
+                timeout=30,
+            )
+            response.raise_for_status()
+            content = response.json()["choices"][0]["message"]["content"]
+            result = json.loads(content)
+            phone = result.get("phone")
+            if phone:
+                # Normalize phone: remove spaces and dashes
+                normalized = re.sub(r"[^\d+]", "", phone)
+                return normalized if normalized else None
+            return None
+        except Exception as exc:
+            logger.debug("AI phone extraction failed: %s", exc)
+            return None
 
     def _needs_ai(self, record: UnifiedRecord) -> bool:
         if (record.source or "").lower() == "invoice":
@@ -219,10 +298,10 @@ class LLMEnricher:
                     "role": "system",
                     "content": (
                         "You extract business metadata. Respond ONLY with a minimal JSON object containing "
-                        "'service_interest', 'priority', 'message_summary', and optionally 'missing_fields'. "
+                        "'service_interest', 'priority', 'message_summary', 'phone', and optionally 'missing_fields'. "
                         "Priority must be exactly high, medium, or low. message_summary must be a single, complete "
                         "sentence (same language as the user) that reflects the core need expressed in the content, "
-                        "without lists, numbering, or trailing conjunctions."
+                        "without lists, numbering, or trailing conjunctions. 'phone' should be a phone number if found, or null."
                     ),
                 },
                 {"role": "user", "content": prompt},
@@ -289,6 +368,12 @@ class LLMEnricher:
         message_text = self._template_style_message(record, summary, summary_source)
         if message_text:
             updates["message"] = message_text
+
+        # Handle phone number from AI enrichment (if not already set from two-stage extraction)
+        if not record.phone and data.get("phone"):
+            phone = re.sub(r"[^\d+]", "", data.get("phone"))
+            if phone:
+                updates["phone"] = phone
 
         missing_fields = data.get("missing_fields") or {}
         if isinstance(missing_fields, dict):

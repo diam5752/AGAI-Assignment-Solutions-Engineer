@@ -167,6 +167,7 @@ def _edit_controls(record: UnifiedRecord, editor_key: str, row_id: int, source_l
     st.subheader("Edit fields (double-click to update)")
     st.caption(source_label)
     editable_fields = {
+        "Status": "status",
         "Customer": "customer_name",
         "Email": "email",
         "Phone": "phone",
@@ -174,6 +175,7 @@ def _edit_controls(record: UnifiedRecord, editor_key: str, row_id: int, source_l
         "Notes": "notes",
     }
     row = {
+        "Status": record.status or "pending_review",
         "Customer": record.customer_name or "",
         "Email": record.email or "",
         "Phone": record.phone or "",
@@ -192,6 +194,11 @@ def _edit_controls(record: UnifiedRecord, editor_key: str, row_id: int, source_l
         key=f"editor_{editor_key}",
         column_config={
             "Row ID": st.column_config.NumberColumn("Row ID"),
+            "Status": st.column_config.SelectboxColumn(
+                "Status",
+                options=["pending_review", "approved", "rejected", "needs_review"],
+                required=True,
+            ),
             "Total Amount": st.column_config.NumberColumn("Total Amount", format="%.2f"),
         },
         column_order=["Row ID", *editable_fields.keys()],
@@ -210,6 +217,9 @@ def _edit_controls(record: UnifiedRecord, editor_key: str, row_id: int, source_l
                     updates[field] = float(value)
                 except (ValueError, TypeError):
                     updates[field] = None
+        elif field == "status":
+            # Status is handled separately via action buttons, but allow manual editing too
+            updates[field] = value if value else "pending_review"
         else:
             updates[field] = value or None
     return apply_edits(record, updates)
@@ -434,7 +444,16 @@ def main() -> None:
                 preview_rows: List[dict[str, str]] = []
                 for (row_index, record), template in zip(filtered_records, template_rows):
                     issues = _detected_issues(record)
-                    warning_text = f"⚠️ {'; '.join(issues)}" if issues else ""
+                    # For needs_review status, show the reason from notes
+                    if record.status == "needs_review" and record.notes:
+                        # Extract the most relevant part of the notes (after the last |)
+                        notes_parts = record.notes.split("|")
+                        reason = notes_parts[-1].strip() if notes_parts else record.notes
+                        warning_text = f"⚠️ {reason}"
+                    elif issues:
+                        warning_text = f"⚠️ {'; '.join(issues)}"
+                    else:
+                        warning_text = ""
                     action_needed = bool(issues or record.status in {"needs_review", "rejected"})
                     ordered_row = {
                         "Row": row_index + 1,
