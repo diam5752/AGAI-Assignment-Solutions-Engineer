@@ -12,7 +12,9 @@ from typing import Dict, Iterable, List, Optional
 
 import requests
 
-from automation.models import UnifiedRecord
+from automation.core.models import UnifiedRecord
+
+from automation.core.utils import load_env_file
 
 logger = logging.getLogger(__name__)
 DEFAULT_SECRET_FILE = Path(__file__).resolve().parents[1] / "secrets" / "openai.env"
@@ -57,7 +59,7 @@ TRAILING_CLAUSE_PATTERNS = [
 ]
 
 
-def _load_ai_env_from_file() -> None:
+def _ensure_ai_env() -> None:
     """Load AI credentials from a local secrets file once per process."""
 
     global _AI_ENV_LOADED
@@ -67,22 +69,7 @@ def _load_ai_env_from_file() -> None:
     _AI_ENV_LOADED = True
     secret_location = os.getenv("AI_SECRET_FILE")
     path = Path(secret_location).expanduser() if secret_location else DEFAULT_SECRET_FILE
-    if not path.exists():
-        return
-
-    try:
-        with path.open(encoding="utf-8") as handle:
-            for raw_line in handle:
-                line = raw_line.strip()
-                if not line or line.startswith("#") or "=" not in line:
-                    continue
-                key, value = line.split("=", 1)
-                key = key.strip()
-                if not key or key in os.environ:
-                    continue
-                os.environ[key] = value.strip().strip('"').strip("'")
-    except OSError as exc:  # pragma: no cover - best-effort secret loading
-        logger.debug("Could not load AI secrets file %s: %s", path, exc)
+    load_env_file(path)
 
 
 def _strip_trailing_connectors(text: str) -> str:
@@ -174,7 +161,7 @@ class LLMEnricher:
     """Optional AI-backed enrichment with deterministic heuristics fallback."""
 
     def __init__(self) -> None:
-        _load_ai_env_from_file()
+        _ensure_ai_env()
         self.api_key = os.getenv("OPENAI_API_KEY")
         self.model = os.getenv("OPENAI_MODEL", "gpt-5-nano")
         self.base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")

@@ -58,3 +58,20 @@ def write_excel(rows: Iterable[Dict[str, Any]], output_path: Path) -> None:
     for row in rows:
         sheet.append([row.get(header, "") for header in headers])
     workbook.save(output_path)
+
+
+def write_csv(rows: Iterable[Dict[str, Any]], output_path: Path) -> None:
+    """Write unified records to a CSV file with consistent headers."""
+
+    rows = list(rows)
+    ensure_output_dir(output_path)
+    if not rows:
+        return
+
+    import csv
+    from automation.reporting.templates import TEMPLATE_HEADERS
+
+    with output_path.open("w", newline="", encoding="utf-8") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=TEMPLATE_HEADERS)
+        writer.writeheader()
+        writer.writerows(rows)

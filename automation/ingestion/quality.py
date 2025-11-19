@@ -2,7 +2,7 @@
 import logging
 from typing import Iterable, List
 
-from automation.models import UnifiedRecord
+from automation.core.models import UnifiedRecord
 
 
 logger = logging.getLogger(__name__)

@@ -2,7 +2,16 @@
 from email.message import EmailMessage
 from pathlib import Path
 
-from automation.extractors import parse_form, parse_invoice, parse_email, load_records
+from automation.ingestion.extractors import (
+    _clean_amount,
+    _html_to_text,
+    _parse_email_date,
+    load_records,
+    parse_email,
+    parse_form,
+    parse_invoice,
+)
+from automation.core.models import UnifiedRecord
 
 DATA_DIR = Path("dummy_data")
 
@@ -175,8 +184,9 @@ def test_parse_invoice_european_decimal_format(tmp_path):
     assert record.total_amount == 1530.16
 
 
-def test_load_records_counts_all_assets():
-    """Loading records should cover all files across dummy folders."""
+def test_load_records_counts_all_assets(dummy_data_dir: Path):
+    """Ensure we pick up every supported file type."""
 
-    records = load_records(DATA_DIR)
+    records, _ = load_records(dummy_data_dir)
+    # 5 forms + 10 invoices + 10 emails = 25
     assert len(records) == 5 + 10 + 10

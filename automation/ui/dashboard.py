@@ -10,14 +10,14 @@ import streamlit as st
 if __package__ in {None, ""}:
     import sys
 
-    sys.path.append(str(Path(__file__).resolve().parent.parent))
+    sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from automation.models import UnifiedRecord
-from automation.pipeline import write_csv, auto_sheets_target
-from automation.sinks import push_to_google_sheets, write_excel
-from automation.quality import validate_record
-from automation.review import apply_edits, load_review_records, mark_status
-from automation.templates import records_to_template_rows
+from automation.core.models import UnifiedRecord
+from automation.ingestion.quality import validate_record
+from automation.processing.pipeline import auto_sheets_target
+from automation.reporting.sinks import push_to_google_sheets, write_excel, write_csv
+from automation.reporting.templates import records_to_template_rows
+from automation.ui.review import apply_edits, load_review_records, mark_status
 
 
 def _load_session_records(data_dir: Path) -> List[UnifiedRecord]:

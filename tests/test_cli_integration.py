@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from openpyxl import load_workbook
 
-from automation import pipeline
+from automation.processing import pipeline
 from automation.cli import main as cli_main
 
 

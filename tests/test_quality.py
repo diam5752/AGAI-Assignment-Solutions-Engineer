@@ -1,9 +1,9 @@
 """Quality rules keep extracted records ready for human review."""
 from pathlib import Path
 
-from automation.extractors import parse_invoice
-from automation.models import UnifiedRecord
-from automation.quality import apply_quality_checks, validate_record
+from automation.ingestion.extractors import parse_invoice
+from automation.core.models import UnifiedRecord
+from automation.ingestion.quality import apply_quality_checks, validate_record
 
 
 DATA_DIR = Path("dummy_data")

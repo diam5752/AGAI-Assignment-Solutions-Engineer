@@ -8,20 +8,13 @@ import logging
 import re
 import unicodedata
 from pathlib import Path
-from typing import List
+from typing import List, Tuple, Optional
 
-from automation.models import UnifiedRecord
+from automation.core.models import UnifiedRecord
+from automation.core.utils import read_file
 
 
 logger = logging.getLogger(__name__)
-
-_INGESTION_ALERTS: list[str] = []
-
-
-def _read_file(path: Path) -> str:
-    """Read file content as UTF-8 text."""
-
-    return path.read_text(encoding="utf-8")
 
 
 def _html_to_text(raw: str) -> str:
@@ -51,7 +44,7 @@ def _clean_amount(raw: str) -> float:
     return float(normalized)
 
 
-def _parse_email_date(date_header: str | None) -> str | None:
+def _parse_email_date(date_header: Optional[str]) -> Optional[str]:
     """Return an ISO-formatted date string derived from an email header."""
 
     if not date_header:
@@ -74,7 +67,7 @@ def _parse_email_date(date_header: str | None) -> str | None:
 def parse_form(path: Path) -> UnifiedRecord:
     """Extract customer data from an HTML contact form."""
 
-    content = _read_file(path)
+    content = read_file(path)
 
     def value_for(field: str) -> str:
         """Pull the value attribute for a given input name."""
@@ -112,7 +105,7 @@ def parse_form(path: Path) -> UnifiedRecord:
 def parse_invoice(path: Path) -> UnifiedRecord:
     """Extract key fields from an HTML invoice file."""
 
-    content = _read_file(path)
+    content = read_file(path)
     text = _html_to_text(content).replace("\r", "")
     lines = [line for line in text.splitlines() if line.strip()]
     def after(labels: str | list[str]) -> str:
@@ -269,12 +262,15 @@ def parse_email(path: Path) -> UnifiedRecord:
     )
 
 
-def load_records(data_dir: Path) -> List[UnifiedRecord]:
-    """Parse all supported files under dummy_data into normalized records."""
+def load_records(data_dir: Path) -> Tuple[List[UnifiedRecord], List[str]]:
+    """Parse all supported files under dummy_data into normalized records.
 
-    global _INGESTION_ALERTS
-    _INGESTION_ALERTS = []
+    Returns:
+        A tuple containing the list of successfully parsed records and a list of
+        error messages (alerts) for files that failed to parse.
+    """
 
+    ingestion_alerts: List[str] = []
     records: List[UnifiedRecord] = []
     forms_dir = data_dir / "forms"
     invoices_dir = data_dir / "invoices"
@@ -287,28 +283,22 @@ def load_records(data_dir: Path) -> List[UnifiedRecord]:
             records.append(parse_form(form_path))
         except Exception:  # pragma: no cover - exercised via caplog
             logger.exception("Failed to parse form %s", form_path)
-            _INGESTION_ALERTS.append(f"Failed to parse form {form_path.name}")
+            ingestion_alerts.append(f"Failed to parse form {form_path.name}")
 
     for invoice_path in sorted(invoices_dir.glob("*.html")):
         try:
             records.append(parse_invoice(invoice_path))
         except Exception:  # pragma: no cover - exercised via caplog
             logger.exception("Failed to parse invoice %s", invoice_path)
-            _INGESTION_ALERTS.append(f"Failed to parse invoice {invoice_path.name}")
+            ingestion_alerts.append(f"Failed to parse invoice {invoice_path.name}")
 
     for email_path in sorted(emails_dir.glob("*.eml")):
         try:
             records.append(parse_email(email_path))
         except Exception:  # pragma: no cover - exercised via caplog
             logger.exception("Failed to parse email %s", email_path)
-            _INGESTION_ALERTS.append(f"Failed to parse email {email_path.name}")
+            ingestion_alerts.append(f"Failed to parse email {email_path.name}")
 
     logger.info("Loaded %d records", len(records))
 
-    return records
-
-
-def get_ingestion_alerts() -> List[str]:
-    """Return a copy of the ingestion alerts recorded during load_records."""
-
-    return list(_INGESTION_ALERTS)
+    return records, ingestion_alerts

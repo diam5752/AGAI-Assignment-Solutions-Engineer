@@ -3,7 +3,7 @@ import argparse
 from pathlib import Path
 
 from automation.logging_utils import configure_logging
-from automation.pipeline import run_pipeline
+from automation.processing.pipeline import run_pipeline
 
 
 def build_parser() -> argparse.ArgumentParser:

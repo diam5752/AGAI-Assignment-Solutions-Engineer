@@ -5,12 +5,14 @@ import os
 from pathlib import Path
 from typing import Iterable, Dict, Any, Optional
 
-from automation.extractors import load_records
-from automation.models import UnifiedRecord
-from automation.quality import apply_quality_checks
-from automation.sinks import push_to_google_sheets, write_excel
-from automation.templates import TEMPLATE_HEADERS, records_to_template_rows
-from automation.enrichment import enrich_records
+from automation.ingestion.extractors import load_records
+from automation.core.models import UnifiedRecord
+from automation.ingestion.quality import apply_quality_checks
+from automation.reporting.sinks import push_to_google_sheets, write_excel, write_csv
+from automation.reporting.templates import TEMPLATE_HEADERS, records_to_template_rows
+from automation.processing.enrichment import enrich_records
+
+from automation.core.utils import load_env_file
 
 DEFAULT_SERVICE_ACCOUNT_PATHS = [
     Path("secrets/service_account.json"),
@@ -23,7 +25,7 @@ _SHEETS_ENV_LOADED = False
 logger = logging.getLogger(__name__)
 
 
-def _load_sheets_env_from_file() -> None:
+def _ensure_sheets_env() -> None:
     """Populate Google Sheets env vars from secrets/sheets.env."""
 
     global _SHEETS_ENV_LOADED
@@ -32,22 +34,7 @@ def _load_sheets_env_from_file() -> None:
     _SHEETS_ENV_LOADED = True
 
     env_path = Path(os.getenv("GOOGLE_SHEETS_ENV_FILE", DEFAULT_SHEETS_ENV_FILE))
-    if not env_path.exists():
-        return
-
-    try:
-        with env_path.open(encoding="utf-8") as handle:
-            for raw_line in handle:
-                line = raw_line.strip()
-                if not line or line.startswith("#") or "=" not in line:
-                    continue
-                key, value = line.split("=", 1)
-                key = key.strip()
-                if not key or key in os.environ:
-                    continue
-                os.environ[key] = value.strip().strip('"').strip("'")
-    except OSError:
-        logger.debug("Unable to load Google Sheets env file %s", env_path)
+    load_env_file(env_path)
 
 
 def _default_service_account_path() -> Optional[Path]:
@@ -62,7 +49,7 @@ def _resolve_sheets_target(
     worksheet_title: str,
     explicit_account_path: Optional[Path],
 ) -> Dict[str, Any]:
-    _load_sheets_env_from_file()
+    _ensure_sheets_env()
     if not spreadsheet_id:
         raise ValueError("spreadsheet_id is required when sink='sheets'")
 
@@ -81,7 +68,7 @@ def _resolve_sheets_target(
 
 
 def auto_sheets_target() -> Optional[Dict[str, Any]]:
-    _load_sheets_env_from_file()
+    _ensure_sheets_env()
     if os.getenv("GOOGLE_SHEETS_AUTO_SYNC", "0") != "1":
         return None
 
@@ -108,18 +95,7 @@ def ensure_output_dir(output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
 
-def write_csv(rows: Iterable[Dict[str, Any]], output_path: Path) -> None:
-    """Write unified records to a CSV file with consistent headers."""
 
-    rows = list(rows)
-    ensure_output_dir(output_path)
-    if not rows:
-        return
-
-    with output_path.open("w", newline="", encoding="utf-8") as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=TEMPLATE_HEADERS)
-        writer.writeheader()
-        writer.writerows(rows)
 
 
 def run_pipeline(
@@ -134,7 +110,12 @@ def run_pipeline(
     """Load data, add quality statuses, and emit a CSV summary."""
 
     logger.info("Pipeline starting for data dir %s", data_dir)
-    raw_records = load_records(data_dir)
+    raw_records, alerts = load_records(data_dir)
+    if alerts:
+        logger.warning("Encountered %d ingestion alerts during loading", len(alerts))
+        for alert in alerts:
+            logger.warning("Alert: %s", alert)
+
     if not raw_records:
         message = (
             f"No records found under {data_dir}. "

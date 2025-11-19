@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from automation.extractors import load_records
-from automation.pipeline import run_pipeline
-from automation.templates import TEMPLATE_HEADERS, records_to_template_rows
-from automation.models import UnifiedRecord
+from automation.ingestion.extractors import load_records
+from automation.processing.pipeline import run_pipeline
+from automation.reporting.templates import TEMPLATE_HEADERS, records_to_template_rows
+from automation.core.models import UnifiedRecord
 
 
 def test_run_pipeline_writes_csv_with_headers_and_status(tmp_path: Path, dummy_data_dir: Path):
@@ -17,7 +17,8 @@ def test_run_pipeline_writes_csv_with_headers_and_status(tmp_path: Path, dummy_d
 
     assert output_path.exists()
     rows = list(csv.DictReader(output_path.read_text(encoding="utf-8").splitlines()))
-    assert len(rows) == len(load_records(dummy_data_dir))
+    records, _ = load_records(dummy_data_dir)
+    assert len(rows) == len(records)
     assert list(rows[0].keys()) == TEMPLATE_HEADERS
     assert rows[0]["Type"] in {"FORM", "EMAIL", "INVOICE"}
     assert rows[0]["Date"]
@@ -150,11 +151,12 @@ def test_run_pipeline_auto_syncs_to_sheets(monkeypatch, tmp_path: Path, dummy_da
     monkeypatch.setenv("GOOGLE_SHEETS_SPREADSHEET_ID", "abc123")
     monkeypatch.setenv("GOOGLE_SHEETS_WORKSHEET", "AutoTab")
     monkeypatch.setenv("GOOGLE_SHEETS_SERVICE_ACCOUNT", str(service_account))
-    monkeypatch.setattr("automation.pipeline.push_to_google_sheets", fake_push)
+    monkeypatch.setattr("automation.processing.pipeline.push_to_google_sheets", fake_push)
 
     run_pipeline(dummy_data_dir, output_path)
 
     assert recorded["spreadsheet_id"] == "abc123"
     assert recorded["worksheet_title"] == "AutoTab"
     assert recorded["service_account_path"] == service_account
-    assert recorded["row_count"] == len(load_records(dummy_data_dir))
+    records, _ = load_records(dummy_data_dir)
+    assert recorded["row_count"] == len(records)

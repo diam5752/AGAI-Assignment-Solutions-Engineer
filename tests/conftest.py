@@ -11,7 +11,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from automation.cli import main as cli_main
-from automation.extractors import load_records
+from automation.ingestion.extractors import load_records
 
 
 @pytest.fixture(autouse=True)
@@ -33,7 +33,8 @@ def dummy_data_dir() -> Path:
 def expected_record_count(dummy_data_dir: Path) -> int:
     """Provide the number of raw records in the dummy data folder."""
 
-    return len(load_records(dummy_data_dir))
+    records, _ = load_records(dummy_data_dir)
+    return len(records)
 
 
 @pytest.fixture

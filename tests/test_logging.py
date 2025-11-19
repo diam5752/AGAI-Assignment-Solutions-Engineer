@@ -3,7 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from automation import extractors, pipeline
+from automation.ingestion import extractors
+from automation.processing import pipeline
 
 
 def _write_minimal_form(path: Path) -> None:
@@ -45,10 +46,13 @@ def test_load_records_logs_and_continues(tmp_path: Path, caplog, monkeypatch):
     monkeypatch.setattr(extractors, "parse_form", sometimes_failing)
 
     caplog.set_level("ERROR")
-    records = extractors.load_records(data_dir)
+    # Should load 1 valid record and log an error for the bad one
+    records, alerts = extractors.load_records(data_dir)
 
     assert len(records) == 1
-    assert "bad.html" in caplog.text
+    assert len(alerts) == 1
+    assert "Failed to parse form bad.html" in alerts[0]
+    assert "Failed to parse form" in caplog.text
 
 
 def test_pipeline_logs_summary(tmp_path: Path, caplog):
