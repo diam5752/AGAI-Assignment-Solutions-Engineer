@@ -1,0 +1,26 @@
+Type,Source,Date,Client_Name,Email,Phone,Company,Service_Interest,Amount,VAT,Total_Amount,Invoice_Number,Priority,Message
+FORM,contact_form_1.html,2024-01-15,Νίκος Παπαδόπουλος,nikos.papadopoulos@example.gr,210-1234567,Digital Marketing Pro,Ανάπτυξη Website,,,,,high,Χρειαζόμαστε ένα νέο e-commerce website
+FORM,contact_form_2.html,2024-01-16,Μαρία Κώστα,maria.kosta@lawfirm.gr,210-9876543,Κώστα & Συνεργάτες Δικηγορικό Γραφείο,Διαχείριση Βάσης Δεδομένων,,,,,medium,Χρειαζόμαστε ασφάλεια υψηλού επιπέδου λόγω ευαίσθητων δεδομένων
+FORM,contact_form_3.html,2024-01-17,Γιάννης Αντωνίου,giannis@restaurant-olympia.gr,2310-555123,Ολυμπία Restaurant Chain,Σύστημα POS,,,,,high,"χρειαζόμαστε ενοποιημένο σύστημα POS με κεντρική διαχείριση, online παραγγελίες και loyalty program"
+FORM,contact_form_4.html,2024-01-18,Άννα Γεωργίου,anna.georgiou@medclinic.gr,210-7654321,Κέντρο Υγείας Αθήνας,Σύστημα Διαχείρισης Ιατρείου,,,,,medium,"Χρειαζόμαστε σύστημα διαχείρισης ασθενών, ραντεβού, ιατρικών αρχείων και τιμολόγησης"
+FORM,contact_form_5.html,2024-01-19,Κώστας Δημητρίου,kostas@buildingco.gr,2310-123456,Δημητρίου Κατασκευές ΑΕ,Σύστημα Διαχείρισης Έργων,,,,,low,"Χρειαζόμαστε σύστημα για παρακολούθηση προόδου, κόστους, υλικών και εργατικού δυναμικού"
+INVOICE,invoice_TF-2024-001.html,2024-01-21,Office Solutions Ltd,,,,,850.00,204.00,1054.00,TF-2024-001,,
+INVOICE,invoice_TF-2024-002.html,2024-01-22,Microsoft Hellas,,,,,2400.00,576.00,2976.00,TF-2024-002,,
+INVOICE,invoice_TF-2024-003.html,2024-01-23,Computer World SA,,,,,4200.00,1008.00,5208.00,TF-2024-003,,
+INVOICE,invoice_TF-2024-004.html,2024-01-24,Digital Marketing Agency,,,,,1600.00,384.00,1984.00,TF-2024-004,,
+INVOICE,invoice_TF-2024-005.html,2024-01-25,Βιβλιοπωλείο Καλλιτεχνία,,,,,2030.00,487.20,2517.20,TF-2024-005,,
+INVOICE,invoice_TF-2024-006.html,2024-01-26,Ιατρείο Παπαδόπουλος,,,,,6220.00,1492.80,7712.80,TF-2024-006,,
+INVOICE,invoice_TF-2024-007.html,2024-01-27,"Καφέ ""Ελληνικός""",,,,,1720.00,412.80,2132.80,TF-2024-007,,
+INVOICE,invoice_TF-2024-008.html,2024-01-28,Δικηγορικό Γραφείο Κ. Μάντζιου,,,,,3800.00,912.00,4712.00,TF-2024-008,,
+INVOICE,invoice_TF-2024-009.html,2024-01-29,"Fitness Club ""Ηρακλής""",,,,,1590.00,381.60,1971.60,TF-2024-009,,
+INVOICE,invoice_TF-2024-010.html,2024-01-30,"Φωτογραφικό Στούντιο ""Φως""",,,,,3500.00,840.00,4340.00,TF-2024-010,,
+EMAIL,email_01.eml,2024-01-20,Σπύρος Μιχαήλ,spyros.michail@techcorp.gr,210-3344556,TechCorp AE,Αίτημα για Σύστημα CRM,,,,,,Χρειαζόμαστε Διαχείριση πελατών (300+ ενεργοί πελάτες)
+EMAIL,email_02.eml,2024-01-20,Ελένη Παπαγεωργίου,eleni@fashionstore.gr,6944-123456,Fashion Store Athens,E-commerce Platform για Fashion Store,,,,,,Θέλουμε να δημιουργήσουμε ένα e-commerce website
+EMAIL,email_03.eml,2024-01-21,Λογιστήριο TechFlow,accounting@techflow-solutions.gr,,Office Solutions Ltd,Τιμολόγιο #TF-2024-001 - Office Supplies,,,,,,"Αγαπητοί συνεργάτες, Σας αποστέλλουμε το τιμολόγιο #TF-2024-001 για τα είδη γραφείου"
+EMAIL,email_04.eml,2024-01-21,Παναγιώτης Κωνσταντίνου,panagiotis@autoservice.gr,2310-987654,AutoService Κωνσταντίνου,Αίτημα για Garage Management System,,,,,,Θέλουμε σύστημα που
+EMAIL,email_05.eml,2024-01-22,Λογιστήριο TechFlow,accounting@techflow-solutions.gr,,Microsoft Hellas,Τιμολόγιο #TF-2024-002 - Software Licenses,,,,,,"Τμήμα Οικονομικών, Παρακαλώ βρείτε συνημμένο το τιμολόγιο για τις άδειες λογισμικού"
+EMAIL,email_06.eml,2024-01-22,Δημήτρης Βασιλείου,dimitris@hotelgroup.gr,22840-123456,Aegean Hotel Group,Hotel Management System - Urgent Need,,,,,,Χρειαζόμαστε ενοποιημένο booking system
+EMAIL,email_07.eml,2024-01-23,Λογιστήριο TechFlow,accounting@techflow-solutions.gr,,Computer World SA,Τιμολόγιο #TF-2024-003 - Hardware Equipment,,,,,,"Αγαπητοί συνεργάτες, Σας στέλνουμε το τιμολόγιο για τον εξοπλισμό υπολογιστών"
+EMAIL,email_08.eml,2024-01-23,Βασίλης Γεωργάκης,vasilis@pharmnet.gr,210-6677889,PharmNet - Δίκτυο Φαρμακείων,Pharmacy Management System,,,,,,Χρειαζόμαστε σύστημα που να διαχειρίζεται
+EMAIL,email_09.eml,2024-01-24,Λογιστήριο TechFlow,accounting@techflow-solutions.gr,,Digital Marketing Agency,Τιμολόγιο #TF-2024-004 - Marketing Services,,,,,,"Διοίκηση, Σας προωθούμε το τιμολόγιο για τις υπηρεσίες marketing"
+EMAIL,email_10.eml,2024-01-24,Σοφία Αλεξάνδρου,sofia@greenfood.gr,6977-888999,GreenFood Delivery,Food Delivery App Development,,,,,,Χρειαζόμαστε
