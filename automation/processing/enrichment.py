@@ -165,8 +165,8 @@ class LLMEnricher:
     def __init__(self, disabled: Optional[bool] = None) -> None:
         _ensure_ai_env()
         self.api_key = get_config_value("OPENAI_API_KEY")
-        self.model = get_config_value("OPENAI_MODEL", "gpt-5-nano")
-        self.base_url = get_config_value("OPENAI_BASE_URL", "https://api.openai.com/v1")
+        self.model = get_config_value("OPENAI_MODEL")
+        self.base_url = get_config_value("OPENAI_BASE_URL")
         if disabled is not None:
             self.disabled = disabled
         else:

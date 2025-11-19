@@ -315,12 +315,6 @@ def main() -> None:
     with col2:
         ai_active = st.toggle("Enable AI", key="ai_toggle", help="Toggle AI enrichment for new data loads")
         
-    # Check for API key if AI is enabled
-    if ai_active:
-        api_key = get_config_value("OPENAI_API_KEY")
-        if not api_key:
-            st.error("⚠️ OPENAI_API_KEY not found! AI enrichment will fail. Please configure secrets.")
-        
     # If toggle changed, clear records to force reload
     if "last_ai_state" not in st.session_state:
         st.session_state.last_ai_state = ai_active
