@@ -7,7 +7,7 @@ This repository contains the automation pipeline for processing forms, emails, a
 - **Online Excel Spreadsheet**: [View the shared spreadsheet](https://docs.google.com/spreadsheets/d/13OUC-GsJS5B2bszl_eaPxSBC3YiB2-_p0XWSL2X8rl8/edit?gid=0#gid=0)
 - **Live Application**: [View the app online](https://diam5752-agai-assignment-solutions-automationuidashboard-t7rgll.streamlit.app/)
 
-**Note**: AI enrichment is **disabled by default** in the online app for cost management. If you need AI features enabled for the online application, please contact me . For local development, you can easily enable AI enrichment by configuring the appropriate environment variable (see Secrets Configuration below).
+**Note**: AI enrichment is **enabled** in the online app. Please be mindful of usage as it consumes API credits. For local development, you can control AI enrichment by configuring the appropriate environment variable (see Secrets Configuration below).
 
 ## Secrets Configuration
 
