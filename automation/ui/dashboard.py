@@ -88,16 +88,34 @@ def _export_sink(
             spreadsheet_id = auto_config.get("spreadsheet_id", spreadsheet_id)
             worksheet_title = auto_config.get("worksheet_title", worksheet_title or "Sheet1")
             service_account_path = auto_config.get("service_account_path", service_account_path)
-        if not spreadsheet_id or not worksheet_title or not service_account_path:
+        
+        # Check if we can use Streamlit secrets instead of a file
+        has_streamlit_secrets = False
+        try:
+            if hasattr(st, 'secrets') and 'gcp_service_account' in st.secrets:
+                has_streamlit_secrets = True
+        except (FileNotFoundError, KeyError):
+            pass
+        
+        # Validate required fields
+        if not spreadsheet_id or not worksheet_title:
             return (
-                "Provide spreadsheet ID, worksheet title, and a service account file to sync with Google Sheets.",
+                "Provide spreadsheet ID and worksheet title to sync with Google Sheets.",
                 "warning",
             )
-        if not service_account_path.exists():
-            return (
-                f"Service account file not found at {service_account_path}.",
-                "warning",
-            )
+        
+        # If no Streamlit secrets, we need a service account file
+        if not has_streamlit_secrets:
+            if not service_account_path:
+                return (
+                    "Provide a service account file or configure gcp_service_account in Streamlit secrets.",
+                    "warning",
+                )
+            if not service_account_path.exists():
+                return (
+                    f"Service account file not found at {service_account_path}.",
+                    "warning",
+                )
 
         if not template_rows:
             return ("No approved records to push to Google Sheets yet.", "info")
