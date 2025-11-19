@@ -6,3 +6,18 @@ __pycache__/
 node_modules/
 .idea/
 .vscode/
+
+# Secrets and Credentials
+secrets/
+credentials/
+service_account.json
+*.env
+
+# Output and Logs
+output/
+*.log
+
+# Testing and Cache
+.pytest_cache/
+.coverage
+htmlcov/

@@ -89,10 +89,6 @@ def auto_sheets_target() -> Optional[Dict[str, Any]]:
         "worksheet_title": worksheet,
         "service_account_path": account_path,
     }
-def ensure_output_dir(output_path: Path) -> None:
-    """Create the parent directory for the output file when missing."""
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
 
 
 

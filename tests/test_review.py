@@ -2,7 +2,7 @@
 from pathlib import Path
 
 from automation.core.models import UnifiedRecord
-from automation.ui.review import apply_edits, load_review_records, mark_status, records_to_rows
+from automation.ui.review import apply_edits, load_review_records, mark_status
 
 
 def test_apply_edits_updates_fields():
@@ -22,12 +22,6 @@ def test_mark_status_appends_notes():
     assert "check body" in (flagged.notes or "")
 
 
-def test_records_to_rows_matches_length(tmp_path: Path):
-    records, alerts = load_review_records(Path("dummy_data"))
-    assert isinstance(alerts, list)
-    rows = records_to_rows(records)
-    assert len(rows) == len(records)
-    assert rows[0]["source_name"] == records[0].source_name
 
 
 def test_apply_edits_ignores_none_values():
@@ -50,16 +44,3 @@ def test_mark_status_appends_new_note_cleanly():
     assert flagged.notes == "check spacing"
 
 
-def test_records_to_rows_strips_newlines_and_whitespace():
-    record = UnifiedRecord(
-        source="email",
-        source_name="demo.eml",
-        customer_name="Demo User",
-        message="Line one\nLine two\r\nLine three",
-        notes="  Needs\n extra   review ",
-    )
-
-    rows = records_to_rows([record])
-
-    assert rows[0]["message"] == "Line one Line two Line three"
-    assert rows[0]["notes"] == "Needs extra review"

@@ -34,16 +34,3 @@ def mark_status(record: UnifiedRecord, status: str, note: str | None = None) -> 
     return replace(record, status=status, notes=merged_note)
 
 
-def records_to_rows(records: Iterable[UnifiedRecord]) -> List[Dict[str, Any]]:
-    """Convert records to dictionaries for tabular rendering."""
-
-    def _sanitize(value: Any) -> Any:
-        if isinstance(value, str):
-            return " ".join(value.split())
-        return value
-
-    sanitized_rows = []
-    for record in records:
-        row = record.to_dict()
-        sanitized_rows.append({key: _sanitize(value) for key, value in row.items()})
-    return sanitized_rows
