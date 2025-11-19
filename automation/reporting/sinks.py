@@ -26,11 +26,24 @@ def push_to_google_sheets(
     except ImportError as exc:  # pragma: no cover - optional dependency
         raise ImportError("gspread is required for Google Sheets sinks") from exc
 
-    client = (
-        gspread.service_account(filename=str(service_account_path))
-        if service_account_path
-        else gspread.service_account()
-    )
+    # Try Streamlit secrets first (for cloud deployment), then fall back to file
+    client = None
+    try:
+        import streamlit as st
+        if hasattr(st, 'secrets') and 'gcp_service_account' in st.secrets:
+            # Use Streamlit secrets (cloud deployment)
+            client = gspread.service_account_from_dict(st.secrets['gcp_service_account'])
+    except (ImportError, FileNotFoundError, KeyError):
+        pass
+    
+    # Fall back to file-based authentication (local development)
+    if client is None:
+        client = (
+            gspread.service_account(filename=str(service_account_path))
+            if service_account_path
+            else gspread.service_account()
+        )
+    
     worksheet = client.open_by_key(spreadsheet_id).worksheet(worksheet_title)
     worksheet.clear()
     headers: List[str] = list(rows[0].keys())
