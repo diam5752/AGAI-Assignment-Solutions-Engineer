@@ -1,6 +1,8 @@
 """Helper sinks for exporting unified records beyond CSV output."""
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Iterable, List, Dict, Any
+from typing import Any, Dict, Iterable, List
 
 
 def ensure_output_dir(output_path: Path) -> None:

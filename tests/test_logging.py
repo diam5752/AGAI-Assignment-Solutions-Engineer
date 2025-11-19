@@ -3,7 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from automation import extractors, pipeline
+import automation.core.pipeline as pipeline
+import automation.ingestion.loader as loader
 
 
 def _write_minimal_form(path: Path) -> None:
@@ -33,7 +34,7 @@ def test_load_records_logs_and_continues(tmp_path: Path, caplog, monkeypatch):
     _write_minimal_form(good_form)
     bad_form.write_text("<html>broken</html>", encoding="utf-8")
 
-    original_parse_form = extractors.parse_form
+    original_parse_form = loader.parse_form
 
     def sometimes_failing(path: Path):
         """Raise for the bad file and delegate to the real parser otherwise."""
@@ -42,10 +43,10 @@ def test_load_records_logs_and_continues(tmp_path: Path, caplog, monkeypatch):
             raise ValueError("boom")
         return original_parse_form(path)
 
-    monkeypatch.setattr(extractors, "parse_form", sometimes_failing)
+    monkeypatch.setattr(loader, "parse_form", sometimes_failing)
 
     caplog.set_level("ERROR")
-    records = extractors.load_records(data_dir)
+    records = loader.load_records(data_dir)
 
     assert len(records) == 1
     assert "bad.html" in caplog.text

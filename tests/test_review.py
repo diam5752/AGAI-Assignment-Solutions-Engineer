@@ -1,8 +1,13 @@
 """Tests for human-in-the-loop review helpers."""
 from pathlib import Path
 
-from automation.models import UnifiedRecord
-from automation.review import apply_edits, load_review_records, mark_status, records_to_rows
+from automation.core.models import UnifiedRecord
+from automation.review.workflow import (
+    apply_edits,
+    load_review_records,
+    mark_status,
+    records_to_rows,
+)
 
 
 def test_apply_edits_updates_fields():

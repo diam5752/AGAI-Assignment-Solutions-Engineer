@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import Any, Dict, Iterable, List
 
-from automation.models import UnifiedRecord
+from automation.core.models import UnifiedRecord
 
 
 TEMPLATE_HEADERS = [

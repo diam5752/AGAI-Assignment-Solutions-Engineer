@@ -1,9 +1,9 @@
 """Tests for AI/heuristic enrichment helpers."""
 import os
 
-import automation.enrichment as enrichment
-from automation.enrichment import enrich_records
-from automation.models import UnifiedRecord
+import automation.enrichment.engine as enrichment
+from automation.core.models import UnifiedRecord
+from automation.enrichment.engine import enrich_records
 
 
 def test_enrich_records_heuristics(monkeypatch):

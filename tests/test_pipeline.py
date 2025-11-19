@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from automation.extractors import load_records
-from automation.pipeline import run_pipeline
-from automation.templates import TEMPLATE_HEADERS, records_to_template_rows
-from automation.models import UnifiedRecord
+from automation.core.models import UnifiedRecord
+from automation.core.pipeline import run_pipeline
+from automation.core.templates import TEMPLATE_HEADERS, records_to_template_rows
+from automation.ingestion import load_records
 
 
 def test_run_pipeline_writes_csv_with_headers_and_status(tmp_path: Path, dummy_data_dir: Path):
@@ -150,7 +150,7 @@ def test_run_pipeline_auto_syncs_to_sheets(monkeypatch, tmp_path: Path, dummy_da
     monkeypatch.setenv("GOOGLE_SHEETS_SPREADSHEET_ID", "abc123")
     monkeypatch.setenv("GOOGLE_SHEETS_WORKSHEET", "AutoTab")
     monkeypatch.setenv("GOOGLE_SHEETS_SERVICE_ACCOUNT", str(service_account))
-    monkeypatch.setattr("automation.pipeline.push_to_google_sheets", fake_push)
+    monkeypatch.setattr("automation.core.pipeline.push_to_google_sheets", fake_push)
 
     run_pipeline(dummy_data_dir, output_path)
 

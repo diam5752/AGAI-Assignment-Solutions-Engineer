@@ -2,7 +2,7 @@
 from email.message import EmailMessage
 from pathlib import Path
 
-from automation.extractors import parse_form, parse_invoice, parse_email, load_records
+from automation.ingestion import load_records, parse_email, parse_form, parse_invoice
 
 DATA_DIR = Path("dummy_data")
 

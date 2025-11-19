@@ -11,7 +11,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from automation.cli import main as cli_main
-from automation.extractors import load_records
+from automation.ingestion import load_records
 
 
 @pytest.fixture(autouse=True)

@@ -3,14 +3,14 @@ import csv
 import logging
 import os
 from pathlib import Path
-from typing import Iterable, Dict, Any, Optional
+from typing import Any, Dict, Iterable, Optional
 
-from automation.extractors import load_records
-from automation.models import UnifiedRecord
-from automation.quality import apply_quality_checks
-from automation.sinks import push_to_google_sheets, write_excel
-from automation.templates import TEMPLATE_HEADERS, records_to_template_rows
-from automation.enrichment import enrich_records
+from automation.core.models import UnifiedRecord
+from automation.core.quality import apply_quality_checks
+from automation.core.templates import TEMPLATE_HEADERS, records_to_template_rows
+from automation.enrichment.engine import enrich_records
+from automation.export.sinks import push_to_google_sheets, write_excel
+from automation.ingestion.loader import load_records
 
 DEFAULT_SERVICE_ACCOUNT_PATHS = [
     Path("secrets/service_account.json"),

@@ -1,9 +1,11 @@
-"""Simple CLI to run the extraction pipeline against the dummy data."""
+"""Command-line entry point for running the extraction pipeline."""
+from __future__ import annotations
+
 import argparse
 from pathlib import Path
 
-from automation.logging_utils import configure_logging
-from automation.pipeline import run_pipeline
+from automation.core.logging import configure_logging
+from automation.core.pipeline import run_pipeline
 
 
 def build_parser() -> argparse.ArgumentParser:

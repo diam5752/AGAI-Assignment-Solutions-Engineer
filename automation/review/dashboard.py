@@ -1,23 +1,18 @@
 """Streamlit dashboard to review, edit, and approve extracted records."""
+from __future__ import annotations
+
 import copy
 from pathlib import Path
 from typing import List
 
 import streamlit as st
 
-# Allow running via "streamlit run automation/dashboard.py" without installing the package
-# by ensuring the repository root is on ``sys.path``.
-if __package__ in {None, ""}:
-    import sys
-
-    sys.path.append(str(Path(__file__).resolve().parent.parent))
-
-from automation.models import UnifiedRecord
-from automation.pipeline import write_csv, auto_sheets_target
-from automation.sinks import push_to_google_sheets, write_excel
-from automation.quality import validate_record
-from automation.review import apply_edits, load_review_records, mark_status
-from automation.templates import records_to_template_rows
+from automation.core.models import UnifiedRecord
+from automation.core.pipeline import auto_sheets_target, write_csv
+from automation.core.quality import validate_record
+from automation.core.templates import records_to_template_rows
+from automation.export.sinks import push_to_google_sheets, write_excel
+from automation.review.workflow import apply_edits, load_review_records, mark_status
 
 
 def _load_session_records(data_dir: Path) -> List[UnifiedRecord]:
@@ -99,25 +94,6 @@ def _export_sink(
             return (f"Google Sheets sync failed: {exc}", "error")
 
     return None, None
-
-
-def _combined_feedback(
-    primary_message: str, primary_level: str, export_feedback: tuple[str | None, str | None]
-) -> tuple[str, str]:
-    """Merge action and export messages while keeping the highest-severity level."""
-
-    export_message, export_level = export_feedback
-    if not export_message:
-        return primary_message, primary_level
-
-    combined_message = f"{primary_message} | {export_message}"
-    severity = {"success": 0, "info": 1, "warning": 2, "error": 3}
-    combined_level = (
-        export_level
-        if severity.get(export_level or "info", 0) > severity.get(primary_level, 0)
-        else primary_level
-    )
-    return combined_message, combined_level
 
 
 def _rerun_app() -> None:

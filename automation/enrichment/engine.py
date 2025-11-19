@@ -12,10 +12,10 @@ from typing import Dict, Iterable, List, Optional
 
 import requests
 
-from automation.models import UnifiedRecord
+from automation.core.models import UnifiedRecord
 
 logger = logging.getLogger(__name__)
-DEFAULT_SECRET_FILE = Path(__file__).resolve().parents[1] / "secrets" / "openai.env"
+DEFAULT_SECRET_FILE = Path(__file__).resolve().parents[2] / "secrets" / "openai.env"
 _AI_ENV_LOADED = False
 
 PRIORITY_TRANSLATIONS = {

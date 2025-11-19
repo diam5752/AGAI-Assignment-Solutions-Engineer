@@ -1,12 +1,14 @@
-"""Helper utilities for human-in-the-loop review of extracted records."""
+"""Review helpers used by the Streamlit dashboard and other surfaces."""
+from __future__ import annotations
+
 from dataclasses import replace
 from pathlib import Path
-from typing import Dict, Iterable, List, Any
+from typing import Any, Dict, Iterable, List
 
-from automation.extractors import load_records, get_ingestion_alerts
-from automation.models import UnifiedRecord
-from automation.quality import apply_quality_checks
-from automation.enrichment import enrich_records
+from automation.core.models import UnifiedRecord
+from automation.core.quality import apply_quality_checks
+from automation.enrichment.engine import enrich_records
+from automation.ingestion import get_ingestion_alerts, load_records
 
 
 def load_review_records(data_dir: Path) -> tuple[List[UnifiedRecord], List[str]]:
@@ -21,7 +23,6 @@ def load_review_records(data_dir: Path) -> tuple[List[UnifiedRecord], List[str]]
 def apply_edits(record: UnifiedRecord, updates: Dict[str, str]) -> UnifiedRecord:
     """Return a record with user-provided field updates applied."""
 
-    # Only overwrite fields explicitly provided by the user.
     updated_fields = {key: value for key, value in updates.items() if value is not None}
     return replace(record, **updated_fields)
 

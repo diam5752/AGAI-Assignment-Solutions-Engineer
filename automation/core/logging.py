@@ -1,4 +1,6 @@
-"""Small helpers to configure consistent logging across the demo tools."""
+"""Logging utilities shared across the automation package."""
+from __future__ import annotations
+
 import logging
 import os
 
