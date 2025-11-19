@@ -299,10 +299,33 @@ def _inject_theme() -> None:
                 color: var(--text-strong);
                 font-weight: 600;
             }
-            .dashboard-card {background: var(--card-color); padding: 1rem; border-radius: 0.75rem; border: 1px solid #cbd5f5;}
-            .alert-card {border-left: 6px solid var(--accent-color); padding: 0.75rem; background: rgba(249,115,22,0.08); border-radius: 0.6rem; margin-bottom: 0.5rem;}
+            .dashboard-card {
+                background: var(--card-color);
+                padding: 1rem;
+                border-radius: 0.75rem;
+                border: 1px solid #cbd5f5;
+            }
+            .alert-card {
+                border-left: 6px solid var(--accent-color);
+                padding: 0.75rem;
+                background: rgba(249,115,22,0.08);
+                border-radius: 0.6rem;
+                margin-bottom: 0.5rem;
+            }
             .section-title {font-size: 1.05rem; font-weight: 700; color: var(--text-strong); margin-top: 0.5rem;}
-            .sticky-panel {position: sticky; top: 1rem; background: rgba(15,118,110,0.05); padding: 1rem; border-radius: 0.8rem; border: 1px solid #cbd5f5;}
+            .sticky-panel {
+                position: sticky;
+                top: 0.75rem;
+                background: rgba(15,118,110,0.05);
+                padding: 1rem;
+                border-radius: 0.8rem;
+                border: 1px solid #cbd5f5;
+                align-self: flex-start;
+                z-index: 5;
+                max-height: calc(100vh - 2rem);
+                overflow: auto;
+                box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+            }
             .sticky-panel .stExpander {background: transparent;}
             .metrics-card, .alerts-card {padding: 0.5rem 0.75rem; border-radius: 0.75rem; border: 1px solid rgba(15,118,110,0.15); margin-bottom: 0.8rem;}
             .metrics-card {background: rgba(15,118,110,0.08);}
