@@ -217,132 +217,6 @@ def _detected_issues(record: UnifiedRecord) -> List[str]:
     return findings
 
 
-def _inject_theme() -> None:
-    """Increase contrast and spacing for better readability."""
-
-    st.markdown(
-        """
-        <style>
-            :root {
-                --primary-color: #0f766e;
-                --primary-color-dark: #0c5b52;
-                --accent-color: #f97316;
-                --card-color: #eef2ff;
-                --text-strong: #0f172a;
-            }
-            body, button, input, textarea, select, label {
-                font-family: "Inter","Noto Sans","Segoe UI",sans-serif !important;
-                letter-spacing: 0.01em;
-                color: var(--text-strong);
-            }
-            h1, h2, h3, h4, h5, h6 {
-                font-weight: 600;
-                color: var(--text-strong);
-            }
-            div[data-testid="stSidebar"] {
-                background: #f8fafc;
-                color: var(--text-strong);
-                border-right: 1px solid #e2e8f0;
-            } 
-            div[data-testid="stSidebar"] h1, div[data-testid="stSidebar"] h2, div[data-testid="stSidebar"] label {
-                color: var(--text-strong);
-            }
-            .stButton>button {
-                width: 100%;
-                padding: 0.75rem;
-                font-weight: 600;
-                border-radius: 0.55rem;
-                border: 1px solid transparent;
-                transition: all 0.2s ease;
-            }
-            .stButton>button[kind="primary"],
-            .stButton>button[data-testid="baseButton-primary"] {
-                background: #16a34a;
-                color: #fff;
-                border-color: #15803d;
-            }
-            .stButton>button[kind="secondary"],
-            .stButton>button[data-testid="baseButton-secondary"] {
-                background: #eef2ff;
-                color: #0f172a;
-                border-color: #c7d2fe;
-            }
-            .stButton>button:hover {
-                filter: brightness(0.92);
-            }
-            .stButton>button:focus-visible {
-                outline: 2px solid var(--accent-color);
-                outline-offset: 1px;
-            }
-            .stTextInput input,
-            .stNumberInput input,
-            textarea {
-                background: #f8fafc;
-                border-radius: 0.55rem;
-                border: 1px solid #cbd5f5;
-                color: var(--text-strong);
-            }
-            .stNumberInput button {
-                color: var(--text-strong);
-            }
-            div[data-testid="stMultiSelect"] div[data-baseweb="tag"] {
-                background: rgba(15,118,110,0.16);
-                color: #0f4c45;
-                border: none;
-                font-weight: 600;
-            }
-            div[data-testid="stMetricLabel"] {
-                color: #475569;
-                text-transform: none;
-            }
-            div[data-testid="stMetricValue"] {
-                color: var(--text-strong);
-                font-weight: 600;
-            }
-            .dashboard-card {
-                background: var(--card-color);
-                padding: 1rem;
-                border-radius: 0.75rem;
-                border: 1px solid #cbd5f5;
-            }
-            .alert-card {
-                border-left: 6px solid var(--accent-color);
-                padding: 0.75rem;
-                background: rgba(249,115,22,0.08);
-                border-radius: 0.6rem;
-                margin-bottom: 0.5rem;
-            }
-            .section-title {font-size: 1.05rem; font-weight: 700; color: var(--text-strong); margin-top: 0.5rem;}
-            .sticky-panel {
-                position: sticky;
-                top: 0.75rem;
-                background: rgba(15,118,110,0.05);
-                padding: 1rem;
-                border-radius: 0.8rem;
-                border: 1px solid #cbd5f5;
-                align-self: flex-start;
-                z-index: 5;
-                max-height: calc(100vh - 2rem);
-                overflow: auto;
-                box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-            }
-            .sticky-panel .stExpander {background: transparent;}
-            .metrics-card, .alerts-card {padding: 0.5rem 0.75rem; border-radius: 0.75rem; border: 1px solid rgba(15,118,110,0.15); margin-bottom: 0.8rem;}
-            .metrics-card {background: rgba(15,118,110,0.08);}
-            .alerts-card {background: rgba(244,114,182,0.12); border-color: rgba(244,114,182,0.35);}
-            .human-loop-controls div[data-testid="column"] {flex: 1;}
-            .human-loop-controls .stButton>button {width: 100%; font-weight: 600;}
-            .human-loop-controls div[data-testid="column"]:nth-of-type(2) .stButton>button {background: #dc2626; color: white; border-color: #b91c1c;}
-            .human-loop-controls div[data-testid="column"]:nth-of-type(3) .stButton>button {background: #f97316; color: white; border-color: #ea580c;}
-            section[data-testid="stSidebar"], div[data-testid="collapsedControl"] {
-                display: none;
-            }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
 def _step_selected_row(delta: int, max_index: int) -> int:
     """Adjust the selected row index with bounds checking for navigation buttons."""
 
@@ -378,9 +252,8 @@ def main() -> None:
     """Launch a lightweight human-in-the-loop dashboard."""
 
     st.set_page_config(
-        page_title="Review Console", layout="wide", initial_sidebar_state="collapsed"
+        page_title="Review Console", layout="wide", initial_sidebar_state="expanded"
     )
-    _inject_theme()
 
     st.title("Human Review for Extracted Records")
     st.caption("Keep exports under human control with quick approvals and edits.")
@@ -442,10 +315,10 @@ def main() -> None:
     def _render_review_tab() -> None:
         records = _load_session_records(data_dir)
 
-        queue_col, metrics_col = st.columns([3, 1.1])
+        queue_area = st.container()
         alert_rows: List[dict[str, str]] = []
 
-        with queue_col:
+        with queue_area:
             sources = sorted({record.source for record in records})
             statuses = sorted({record.status for record in records})
 
@@ -487,7 +360,7 @@ def main() -> None:
 
             st.markdown("#### Records ready for review")
             if filtered_records:
-                st.markdown("<div class='section-title'>Queue preview</div>", unsafe_allow_html=True)
+                st.caption("Queue preview")
                 template_rows = records_to_template_rows(record for _, record in filtered_records)
                 preview_rows: List[dict[str, str]] = []
                 for (row_index, record), template in zip(filtered_records, template_rows):
@@ -593,7 +466,6 @@ def main() -> None:
                     renderer(message)
                     _rerun_app()
 
-                st.markdown('<div class="human-loop-controls">', unsafe_allow_html=True)
                 action_cols = st.columns(3)
                 with action_cols[0]:
                     if st.button("👍 Approve", type="primary"):
@@ -619,7 +491,6 @@ def main() -> None:
                         )
                         _advance_row(1)
                         _commit_action(record_index, updated, message, "info", action_cols[2])
-                st.markdown("</div>", unsafe_allow_html=True)
 
                 st.markdown("### Finalize & export")
                 sink_options = ["csv", "excel", "sheets"]
@@ -741,20 +612,15 @@ def main() -> None:
                             renderer(message or "Google Sheets sync completed.")
             else:
                 st.session_state.pop("selected_row", None)
-        with metrics_col:
-            st.markdown('<div class="sticky-panel">', unsafe_allow_html=True)
-            st.markdown('<div class="metrics-card">', unsafe_allow_html=True)
+        with st.sidebar:
             st.subheader("Live dashboard")
             _queue_dashboard(records)
-            st.markdown("</div>", unsafe_allow_html=True)
-            st.markdown('<div class="alerts-card">', unsafe_allow_html=True)
             st.subheader("Alerts")
             if alert_rows:
                 st.caption(f"{len(alert_rows)} record(s) flagged.")
                 st.dataframe(alert_rows, use_container_width=True, hide_index=True, height=280)
             else:
                 st.success("No alerts found for the current filters.")
-            st.markdown("</div></div>", unsafe_allow_html=True)
 
 
     with review_tab:
