@@ -21,3 +21,6 @@ output/
 .pytest_cache/
 .coverage
 htmlcov/
+
+#docs generation
+automation/docs/
