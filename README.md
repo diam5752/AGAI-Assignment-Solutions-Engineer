@@ -2,6 +2,25 @@
 
 This repository contains the automation pipeline for processing forms, emails, and invoices.
 
+## Online Resources
+
+- **Online Excel Spreadsheet**: [View the shared spreadsheet](https://docs.google.com/spreadsheets/d/13OUC-GsJS5B2bszl_eaPxSBC3YiB2-_p0XWSL2X8rl8/edit?gid=0#gid=0)
+- **Live Application**: [View the app online](https://diam5752-agai-assignment-solutions-automationuidashboard-t7rgll.streamlit.app/)
+
+**Note**: AI enrichment is **disabled by default** in the online app for cost management. If you need AI features enabled for the online application, please contact me . For local development, you can easily enable AI enrichment by configuring the appropriate environment variable (see Secrets Configuration below).
+
+## Secrets Configuration
+
+The application requires configuration files that will be provided via email. After receiving them, place them in the `secrets/` directory as follows:
+
+1. **`service_account.json`** (Required for Google Sheets access)
+   - Place at: `secrets/service_account.json`
+
+2. **`openai.env`** (Optional for AI enrichment features)
+   - Place at: `secrets/openai.env`
+
+**Note**: AI enrichment is **disabled by default**. To enable it, set the environment variable `AI_ENRICHMENT_DISABLED=0` before running the application.
+
 ## Prerequisites
 
 - **Python 3.8** or higher
