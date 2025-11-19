@@ -24,7 +24,24 @@ def _load_session_records(data_dir: Path) -> List[UnifiedRecord]:
     """Load records once per session to keep the app responsive."""
 
     if "records" not in st.session_state:
-        loaded_records, ingestion_alerts = load_review_records(data_dir)
+        import os
+
+        ai_disabled = os.getenv("AI_ENRICHMENT_DISABLED", "0") == "1"
+
+        if not ai_disabled:
+            progress_text = "Enriching records with AI... Please wait."
+            my_bar = st.progress(0, text=progress_text)
+
+            def update_progress(p):
+                my_bar.progress(p, text=progress_text)
+
+            loaded_records, ingestion_alerts = load_review_records(
+                data_dir, progress_callback=update_progress
+            )
+            my_bar.empty()
+        else:
+            loaded_records, ingestion_alerts = load_review_records(data_dir)
+
         st.session_state.records = loaded_records
         st.session_state.original_records = copy.deepcopy(loaded_records)
         st.session_state.ingestion_alerts = ingestion_alerts
@@ -518,13 +535,11 @@ def main() -> None:
 
                 csv_input_value = st.text_input(
                     "CSV file path",
-                    value=st.session_state["csv_export_path"],
                     key="csv_export_path",
                     disabled=export_sink != "csv",
                 )
                 excel_input_value = st.text_input(
                     "Excel file path",
-                    value=st.session_state["excel_export_path"],
                     key="excel_export_path",
                     disabled=export_sink != "excel",
                 )

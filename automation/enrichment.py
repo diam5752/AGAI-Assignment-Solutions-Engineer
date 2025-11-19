@@ -148,17 +148,25 @@ def _indicates_missing_info(text: str) -> bool:
     return any(token in lowered for token in placeholders)
 
 
-def enrich_records(records: Iterable[UnifiedRecord]) -> List[UnifiedRecord]:
+def enrich_records(
+    records: Iterable[UnifiedRecord], progress_callback: Optional[callable] = None
+) -> List[UnifiedRecord]:
     """Run AI/heuristic enrichment across all records."""
 
     enricher = LLMEnricher()
     enriched: List[UnifiedRecord] = []
-    for record in records:
+    record_list = list(records)
+    total = len(record_list)
+
+    for i, record in enumerate(record_list):
         try:
             enriched.append(enricher.enrich(record))
         except Exception:  # pragma: no cover - defensive to keep pipeline running
             logger.exception("Failed to enrich record %s", record.source_name)
             enriched.append(record)
+        if progress_callback:
+            progress_callback((i + 1) / total)
+
     return enriched
 
 

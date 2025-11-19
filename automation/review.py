@@ -1,7 +1,7 @@
 """Helper utilities for human-in-the-loop review of extracted records."""
 from dataclasses import replace
 from pathlib import Path
-from typing import Dict, Iterable, List, Any
+from typing import Dict, Iterable, List, Any, Optional
 
 from automation.extractors import load_records, get_ingestion_alerts
 from automation.models import UnifiedRecord
@@ -9,13 +9,15 @@ from automation.quality import apply_quality_checks
 from automation.enrichment import enrich_records
 
 
-def load_review_records(data_dir: Path) -> tuple[List[UnifiedRecord], List[str]]:
+def load_review_records(
+    data_dir: Path, progress_callback: Optional[callable] = None
+) -> tuple[List[UnifiedRecord], List[str]]:
     """Load and validate records so the UI can present review-ready data."""
 
     raw_records = load_records(data_dir)
     ingestion_alerts = get_ingestion_alerts()
     records = apply_quality_checks(raw_records)
-    return enrich_records(records), ingestion_alerts
+    return enrich_records(records, progress_callback=progress_callback), ingestion_alerts
 
 
 def apply_edits(record: UnifiedRecord, updates: Dict[str, str]) -> UnifiedRecord:
