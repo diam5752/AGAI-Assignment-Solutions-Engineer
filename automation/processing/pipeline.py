@@ -69,6 +69,34 @@ def _resolve_sheets_target(
 
 def auto_sheets_target() -> Optional[Dict[str, Any]]:
     _ensure_sheets_env()
+    
+    # Try to read from Streamlit secrets first (cloud deployment)
+    try:
+        import streamlit as st
+        if hasattr(st, 'secrets'):
+            auto_sync = st.secrets.get("GOOGLE_SHEETS_AUTO_SYNC", "0")
+            if auto_sync != "1":
+                return None
+            
+            spreadsheet_id = st.secrets.get("GOOGLE_SHEETS_SPREADSHEET_ID")
+            if not spreadsheet_id:
+                logger.warning("Auto Sheets sync is enabled but GOOGLE_SHEETS_SPREADSHEET_ID is missing.")
+                return None
+            
+            worksheet = st.secrets.get("GOOGLE_SHEETS_WORKSHEET", "Sheet1")
+            
+            # Check if we have gcp_service_account in secrets
+            if 'gcp_service_account' in st.secrets:
+                # Use a dummy path since we'll use secrets-based auth
+                return {
+                    "spreadsheet_id": spreadsheet_id,
+                    "worksheet_title": worksheet,
+                    "service_account_path": None,  # Will use st.secrets instead
+                }
+    except (ImportError, FileNotFoundError, KeyError):
+        pass
+    
+    # Fall back to environment variables (local development)
     if os.getenv("GOOGLE_SHEETS_AUTO_SYNC", "0") != "1":
         return None
 
