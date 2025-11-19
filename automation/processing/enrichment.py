@@ -17,7 +17,7 @@ from automation.core.models import UnifiedRecord
 from automation.core.utils import load_env_file, get_config_value
 
 logger = logging.getLogger(__name__)
-DEFAULT_SECRET_FILE = Path(__file__).resolve().parents[1] / "secrets" / "openai.env"
+DEFAULT_SECRET_FILE = Path(__file__).resolve().parents[2] / "secrets" / "openai.env"
 _AI_ENV_LOADED = False
 
 PRIORITY_TRANSLATIONS = {
@@ -136,11 +136,13 @@ def _indicates_missing_info(text: str) -> bool:
 
 
 def enrich_records(
-    records: Iterable[UnifiedRecord], progress_callback: Optional[callable] = None
+    records: Iterable[UnifiedRecord],
+    progress_callback: Optional[callable] = None,
+    ai_disabled: bool = False,
 ) -> List[UnifiedRecord]:
     """Run AI/heuristic enrichment across all records."""
 
-    enricher = LLMEnricher()
+    enricher = LLMEnricher(disabled=ai_disabled)
     enriched: List[UnifiedRecord] = []
     record_list = list(records)
     total = len(record_list)
@@ -160,12 +162,12 @@ def enrich_records(
 class LLMEnricher:
     """Optional AI-backed enrichment with deterministic heuristics fallback."""
 
-    def __init__(self) -> None:
+    def __init__(self, disabled: bool = False) -> None:
         _ensure_ai_env()
-        self.api_key = os.getenv("OPENAI_API_KEY")
-        self.model = os.getenv("OPENAI_MODEL", "gpt-5-nano")
-        self.base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
-        self.disabled = get_config_value("AI_ENRICHMENT_DISABLED", "0") == "1"
+        self.api_key = get_config_value("OPENAI_API_KEY")
+        self.model = get_config_value("OPENAI_MODEL", "gpt-5-nano")
+        self.base_url = get_config_value("OPENAI_BASE_URL", "https://api.openai.com/v1")
+        self.disabled = disabled or (get_config_value("AI_ENRICHMENT_DISABLED", "0") == "1")
         self.session = requests.Session() if self.api_key else None
         self._cache: dict[str, Dict[str, Optional[str]]] = {}
 

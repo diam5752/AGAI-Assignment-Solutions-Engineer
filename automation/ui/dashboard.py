@@ -21,13 +21,10 @@ from automation.ui.review import apply_edits, load_review_records, mark_status
 from automation.core.utils import get_config_value
 
 
-def _load_session_records(data_dir: Path) -> List[UnifiedRecord]:
+def _load_session_records(data_dir: Path, ai_disabled: bool) -> List[UnifiedRecord]:
     """Load records once per session to keep the app responsive."""
 
     if "records" not in st.session_state:
-        ai_disabled = get_config_value("AI_ENRICHMENT_DISABLED", "0") == "1"
-
-
         if not ai_disabled:
             progress_text = "Enriching records with AI... Please wait."
             my_bar = st.progress(0, text=progress_text)
@@ -36,11 +33,11 @@ def _load_session_records(data_dir: Path) -> List[UnifiedRecord]:
                 my_bar.progress(p, text=progress_text)
 
             loaded_records, ingestion_alerts = load_review_records(
-                data_dir, progress_callback=update_progress
+                data_dir, progress_callback=update_progress, ai_disabled=False
             )
             my_bar.empty()
         else:
-            loaded_records, ingestion_alerts = load_review_records(data_dir)
+            loaded_records, ingestion_alerts = load_review_records(data_dir, ai_disabled=True)
 
         st.session_state.records = loaded_records
         st.session_state.original_records = copy.deepcopy(loaded_records)
@@ -226,11 +223,13 @@ def _queue_dashboard(records: List[UnifiedRecord]) -> None:
     needs_review = len([record for record in records if record.status == "needs_review"])
     rejected = len([record for record in records if record.status == "rejected"])
 
-    top_cols = st.columns(4)
-    top_cols[0].metric("Total records", total)
-    top_cols[1].metric("Approved", approved)
-    top_cols[2].metric("Needs review", needs_review)
-    top_cols[3].metric("Rejected", rejected)
+    row1 = st.columns(2)
+    row1[0].metric("Total records", total)
+    row1[1].metric("Approved", approved)
+    
+    row2 = st.columns(2)
+    row2[0].metric("Needs review", needs_review)
+    row2[1].metric("Rejected", rejected)
 
     completion_ratio = approved / total if total else 0
     st.progress(completion_ratio)
@@ -298,6 +297,33 @@ def main() -> None:
     )
 
     st.title("Human Review for Extracted Records")
+    
+    # AI Control Panel
+    default_ai_disabled = get_config_value("AI_ENRICHMENT_DISABLED", "0") == "1"
+    
+    # Initialize toggle state if not present
+    if "ai_toggle" not in st.session_state:
+        st.session_state.ai_toggle = not default_ai_disabled
+
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        if st.session_state.ai_toggle:
+            st.success("✨ AI Enrichment Active")
+        else:
+            st.warning("🚫 AI Enrichment Disabled")
+            
+    with col2:
+        ai_active = st.toggle("Enable AI", key="ai_toggle", help="Toggle AI enrichment for new data loads")
+        
+    # If toggle changed, clear records to force reload
+    if "last_ai_state" not in st.session_state:
+        st.session_state.last_ai_state = ai_active
+    
+    if st.session_state.last_ai_state != ai_active:
+        st.session_state.pop("records", None)
+        st.session_state.last_ai_state = ai_active
+        _rerun_app()
+
     st.caption("Keep exports under human control with quick approvals and edits.")
     auto_sheets_config = auto_sheets_target()
 
@@ -355,7 +381,7 @@ def main() -> None:
     excel_path = output_path.with_suffix(".xlsx")
 
     def _render_review_tab() -> None:
-        records = _load_session_records(data_dir)
+        records = _load_session_records(data_dir, ai_disabled=not st.session_state.ai_toggle)
 
         queue_area = st.container()
         alert_rows: List[dict[str, str]] = []

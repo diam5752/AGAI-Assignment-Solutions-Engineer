@@ -10,13 +10,13 @@ from automation.processing.enrichment import enrich_records
 
 
 def load_review_records(
-    data_dir: Path, progress_callback: Optional[callable] = None
+    data_dir: Path, progress_callback: Optional[callable] = None, ai_disabled: bool = False
 ) -> tuple[List[UnifiedRecord], List[str]]:
     """Load and validate records so the UI can present review-ready data."""
 
     raw_records, ingestion_alerts = load_records(data_dir)
     records = apply_quality_checks(raw_records)
-    return enrich_records(records, progress_callback=progress_callback), ingestion_alerts
+    return enrich_records(records, progress_callback=progress_callback, ai_disabled=ai_disabled), ingestion_alerts
 
 
 def apply_edits(record: UnifiedRecord, updates: Dict[str, str]) -> UnifiedRecord:
