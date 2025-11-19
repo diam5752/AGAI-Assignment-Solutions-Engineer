@@ -21,11 +21,11 @@ from automation.ui.review import apply_edits, load_review_records, mark_status
 from automation.core.utils import get_config_value
 
 
-def _load_session_records(data_dir: Path, ai_disabled: bool) -> List[UnifiedRecord]:
+def _load_session_records(data_dir: Path, ai_disabled: bool | None) -> List[UnifiedRecord]:
     """Load records once per session to keep the app responsive."""
 
     if "records" not in st.session_state:
-        if not ai_disabled:
+        if ai_disabled is False:
             progress_text = "Enriching records with AI... Please wait."
             my_bar = st.progress(0, text=progress_text)
 
@@ -315,6 +315,12 @@ def main() -> None:
     with col2:
         ai_active = st.toggle("Enable AI", key="ai_toggle", help="Toggle AI enrichment for new data loads")
         
+    # Check for API key if AI is enabled
+    if ai_active:
+        api_key = get_config_value("OPENAI_API_KEY")
+        if not api_key:
+            st.error("⚠️ OPENAI_API_KEY not found! AI enrichment will fail. Please configure secrets.")
+        
     # If toggle changed, clear records to force reload
     if "last_ai_state" not in st.session_state:
         st.session_state.last_ai_state = ai_active
@@ -381,6 +387,7 @@ def main() -> None:
     excel_path = output_path.with_suffix(".xlsx")
 
     def _render_review_tab() -> None:
+        # Pass explicit True/False based on toggle
         records = _load_session_records(data_dir, ai_disabled=not st.session_state.ai_toggle)
 
         queue_area = st.container()

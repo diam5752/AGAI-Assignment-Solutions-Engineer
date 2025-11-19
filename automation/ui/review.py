@@ -10,7 +10,7 @@ from automation.processing.enrichment import enrich_records
 
 
 def load_review_records(
-    data_dir: Path, progress_callback: Optional[callable] = None, ai_disabled: bool = False
+    data_dir: Path, progress_callback: Optional[callable] = None, ai_disabled: Optional[bool] = None
 ) -> tuple[List[UnifiedRecord], List[str]]:
     """Load and validate records so the UI can present review-ready data."""
 

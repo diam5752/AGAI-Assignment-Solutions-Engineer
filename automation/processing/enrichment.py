@@ -138,7 +138,7 @@ def _indicates_missing_info(text: str) -> bool:
 def enrich_records(
     records: Iterable[UnifiedRecord],
     progress_callback: Optional[callable] = None,
-    ai_disabled: bool = False,
+    ai_disabled: Optional[bool] = None,
 ) -> List[UnifiedRecord]:
     """Run AI/heuristic enrichment across all records."""
 
@@ -162,12 +162,15 @@ def enrich_records(
 class LLMEnricher:
     """Optional AI-backed enrichment with deterministic heuristics fallback."""
 
-    def __init__(self, disabled: bool = False) -> None:
+    def __init__(self, disabled: Optional[bool] = None) -> None:
         _ensure_ai_env()
         self.api_key = get_config_value("OPENAI_API_KEY")
         self.model = get_config_value("OPENAI_MODEL", "gpt-5-nano")
         self.base_url = get_config_value("OPENAI_BASE_URL", "https://api.openai.com/v1")
-        self.disabled = disabled or (get_config_value("AI_ENRICHMENT_DISABLED", "0") == "1")
+        if disabled is not None:
+            self.disabled = disabled
+        else:
+            self.disabled = get_config_value("AI_ENRICHMENT_DISABLED", "0") == "1"
         self.session = requests.Session() if self.api_key else None
         self._cache: dict[str, Dict[str, Optional[str]]] = {}
 
