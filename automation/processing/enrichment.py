@@ -14,7 +14,7 @@ import requests
 
 from automation.core.models import UnifiedRecord
 
-from automation.core.utils import load_env_file
+from automation.core.utils import load_env_file, get_config_value
 
 logger = logging.getLogger(__name__)
 DEFAULT_SECRET_FILE = Path(__file__).resolve().parents[1] / "secrets" / "openai.env"
@@ -165,7 +165,7 @@ class LLMEnricher:
         self.api_key = os.getenv("OPENAI_API_KEY")
         self.model = os.getenv("OPENAI_MODEL", "gpt-5-nano")
         self.base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
-        self.disabled = os.getenv("AI_ENRICHMENT_DISABLED", "0") == "1"
+        self.disabled = get_config_value("AI_ENRICHMENT_DISABLED", "0") == "1"
         self.session = requests.Session() if self.api_key else None
         self._cache: dict[str, Dict[str, Optional[str]]] = {}
 

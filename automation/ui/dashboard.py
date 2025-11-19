@@ -18,15 +18,15 @@ from automation.processing.pipeline import auto_sheets_target
 from automation.reporting.sinks import push_to_google_sheets, write_excel, write_csv
 from automation.reporting.templates import records_to_template_rows
 from automation.ui.review import apply_edits, load_review_records, mark_status
+from automation.core.utils import get_config_value
 
 
 def _load_session_records(data_dir: Path) -> List[UnifiedRecord]:
     """Load records once per session to keep the app responsive."""
 
     if "records" not in st.session_state:
-        import os
+        ai_disabled = get_config_value("AI_ENRICHMENT_DISABLED", "0") == "1"
 
-        ai_disabled = os.getenv("AI_ENRICHMENT_DISABLED", "0") == "1"
 
         if not ai_disabled:
             progress_text = "Enriching records with AI... Please wait."
